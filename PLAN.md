@@ -141,15 +141,15 @@ likely thing to go wrong.
 
 ## Phase 8 — Gmail connector
 
-- [ ] T8.1 OAuth flow: connect, callback, refresh token stored in `gmail_token` (RLS on, no
+- [x] T8.1 OAuth flow: connect, callback, refresh token stored in `gmail_token` (RLS on, no
       policies). Reauthorise and revoke
-- [ ] T8.2 `lib/gmail.ts` — `createDraft()` using `users.drafts.create`. Scope assertion,
+- [x] T8.2 `lib/gmail.ts` — `createDraft()` using `users.drafts.create`. Scope assertion,
       `%.test` recipient assertion, both throwing before any network call
-- [ ] T8.3 Wire approve → create Gmail draft. Surface the draft ID. Visible error state and
+- [x] T8.3 Wire approve → create Gmail draft. Surface the draft ID. Visible error state and
       retry on failure — never a silent drop
-- [ ] T8.4 Settings → Connectors screen: status per service, reauthorise, rotate, the safety
+- [x] T8.4 Settings → Connectors screen: status per service, reauthorise, rotate, the safety
       rails panel from the mock
-- [ ] T8.5 Tests: sending is impossible (scope), non-`.test` recipient is refused, connector
+- [x] T8.5 Tests: sending is impossible (scope), non-`.test` recipient is refused, connector
       failure surfaces
 
 ---

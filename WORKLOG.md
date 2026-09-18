@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`██████████████████░░░░░░░░░░░░` **62%** — 48 of 78 tasks complete
+`████████████████████░░░░░░░░░░` **68%** — 53 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -34,7 +34,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 5 · AI research pack | 6 | 6 ✓ |
 | 6 · Decision-makers | 4 | 4 ✓ |
 | 7 · Drafting & review | 7 | 7 ✓ |
-| 8 · Gmail connector | 0 | 5 |
+| 8 · Gmail connector | 5 | 5 ✓ |
 | 9 · Replies & triage | 0 | 6 |
 | 10 · Meetings & pipeline | 0 | 7 |
 | 11 · Control surfaces | 0 | 5 |
@@ -547,33 +547,166 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T8.1–T8.5 — Gmail connector: OAuth connect/callback/disconnect, wired approve→draft, Settings→Connectors
+- when: 2026-09-18 21:43 UTC
+- agent: claude-code
+- files: lib/gmail.ts, app/api/auth/gmail/connect/route.ts, app/api/auth/gmail/callback/route.ts, lib/gmail-actions.ts, lib/message-actions.ts, lib/nav.ts, tests/nav.test.ts, app/(app)/settings/page.tsx, components/SettingsScreen.tsx, app/(app)/review/page.tsx, components/ReviewScreen.tsx
+- done: |
+    T8.2 was already done — `lib/gmail.ts` (pre-written, T5-era) already had
+    `createDraft`, `assertComposeOnly`, `assertAllowedRecipient`, `assertNotSuppressed`,
+    all asserted before any network call, all tested (`tests/gmail-safety.test.ts`, 9
+    tests, unchanged). Extended it (didn't rewrite) with `getConnectionStatus` (reads
+    `gmail_token` via the service role — RLS has zero policies on that table, so
+    nothing else can — and returns only safe metadata, never the refresh token) and
+    `disconnectToken` (best-effort Google-side revoke, wrapped so a dead/invalid token
+    can't block removing our own copy, then always deletes the row).
+
+    T8.1: `/api/auth/gmail/connect` (redirects to `consentUrl(user.id)` — state carries
+    the signed-in user's own profile id) and `/api/auth/gmail/callback` (re-checks
+    `state === currentUser().id` against the still-live session rather than trusting
+    the query param, handles Google's `?error=` denial, and any `storeTokenFromCode`
+    failure, all by redirecting back to Settings with a readable message).
+    `lib/gmail-actions.ts#disconnectGmail` lets a signed-in user remove their own
+    connection — no extra role check needed, since disconnecting your own token is
+    always yours to do.
+
+    T8.3 — the interesting part: Gmail draft creation belongs in the *approver's own*
+    mailbox, which is both the mock's stated design ("Per-user tokens... drafts appear
+    in the approver's own mailbox") and, it turns out, exactly what `message_update`'s
+    RLS "approving" branch already requires — that branch's WITH CHECK needs
+    `approved_by = auth.uid()` on the *resulting* row, and a gmail_draft_id-only update
+    still has to satisfy it, so only the original approver's client can legally write
+    it. `attemptGmailDraft` (private helper in `lib/message-actions.ts`, shared by
+    `approveMessage` and the new `retryGmailDraft`) never throws — a connector failure
+    writes `AUDIT.GMAIL_FAILED` and returns a warning string instead, so the human
+    approval that already happened is never rolled back by an unrelated mail-API
+    hiccup. `/review` gained an "Approved, awaiting a Gmail draft" card (visible to
+    approvers) listing every approved-but-undrafted message with its last error and a
+    Retry button — shown only to the original approver; anyone else sees who can retry
+    and why.
+
+    T8.4: `/settings` is real now (was a T11.2 placeholder). Built the full 5-tab shell
+    but only implemented Connectors — the other four tabs (Users & roles, Scoring, AI
+    workflow, Commercial guardrails) are explicitly Phase 11's and show a one-line
+    "arrives in Phase 11" placeholder rather than fabricated content. Connectors shows
+    only what's real in this build: Gmail (live OAuth status, Connect/Reauthorise/
+    Disconnect) and Outbound sending (statically Off/Locked, matching
+    `ENABLE_OUTBOUND_SEND=false`) — did NOT fabricate the mock's Registry
+    lookup/UN Comtrade/Calendar rows, since none of those are real connectors in this
+    architecture (see AGENTS.md's decisions table — research runs on AI reasoning over
+    stored facts, not live registry APIs).
+
+    Discovered and fixed a real access-control gap while building this: `lib/nav.ts`
+    hid "Settings & access" from everyone but managers (a T2.4 decision, aimed at
+    Users & roles), which meant Mahbub (commercial) — who legitimately needs to
+    connect his own Gmail, since he approves released drafts — had no way to reach the
+    Connectors tab at all. Widened the nav role list to `['manager', 'commercial']`
+    and narrowed the *page* itself: commercial sees only the Connectors content (no
+    tab bar, since it's their only tab); the other four tabs still render
+    manager-only. Added a test asserting commercial sees the nav item; the two
+    existing tests (executive/auditor still hidden) needed no change.
+- verified: |
+    `npm run verify` green (151 tests). `npm run build` clean, 19 routes now (was 17)
+    — the two new `/api/auth/gmail/*` routes plus `/settings` and `/review` both real.
+    Real e2e against the live Supabase project, the real Google OAuth client from
+    `.env.local`, and a real browser session across three roles:
+    - `consentUrl()` produces a correct, well-formed URL (verified by parsing it in a
+      script: right `client_id`, `redirect_uri` matching `.env.local` exactly, both
+      scopes, `state` equal to the caller's own profile id, `access_type=offline`,
+      `prompt=consent`) — AND by actually clicking "Connect" in the browser and
+      confirming the tab landed on a real `accounts.google.com` sign-in/consent page
+      with every one of those same parameters present in the live URL.
+    - `getConnectionStatus`/`disconnectToken` round-tripped for real: inserted a
+      token row, confirmed `connected: true` with the right metadata; disconnected,
+      confirmed `connected: false`; confirmed `disconnectToken` does not throw when
+      the stored refresh token is garbage (Google's revoke call fails, caught,
+      row still removed) — same behaviour verified again through the actual Settings
+      UI (Connect state → fake-connected via admin to simulate a completed OAuth →
+      Disconnect button → back to "Not connected" after refresh).
+    - The `compose_only` CHECK constraint on `gmail_token` itself still blocks a
+      send-scope token at the DB level regardless of app logic (direct insert
+      attempt refused).
+    - T8.3's "never a silent drop": approved a real message as Rifat with no Gmail
+      connected — the approve succeeded (status stayed `approved`), a
+      `AUDIT.GMAIL_FAILED` row was written with a readable reason, and the message
+      appeared in the new "Approved, awaiting a Gmail draft" card with that same
+      reason and a Retry button. Clicking Retry reproduced the identical graceful
+      error, not a crash. Switching to Mahbub (commercial, also `canApprove`) showed
+      the same card entry but *no* Retry button — "Only Rifat Hasan can retry — it
+      goes into their mailbox" instead, confirming the per-approver ownership rule.
+    - Settings role gating: manager sees all 5 tabs; commercial sees Connectors alone
+      (confirmed — no tab bar rendered); executive is blocked both in the nav (item
+      absent) and at the page level (direct navigation to `/settings` shows the
+      "available to managers and the Commercial Authority" message, not the page).
+    Every company/message/contact/token used for this testing was deleted or reverted
+    via the admin client afterward — no seed data was permanently altered.
+- notes: |
+    **What is still genuinely unverified, and why:** the actual `code` → token
+    exchange after a human completes Google's real consent screen. I reached the edge
+    of what's possible without your Google account: I confirmed the redirect lands on
+    a correct, live `accounts.google.com` page with exactly the right parameters, and
+    I confirmed every downstream piece of code (`storeTokenFromCode`, the callback's
+    error handling, `getConnectionStatus`, the whole approve→draft→retry chain) works
+    correctly given *a* token, real or simulated — but I did not and could not click
+    through the actual consent screen myself. If you complete that once, everything
+    downstream of it is already proven to work.
+
+    `lib/gmail.ts`'s `createDraft()` itself (the actual `gmail.users.drafts.create`
+    call) was not exercised against a real Gmail account for the same reason — it was
+    already unit-tested for its pre-conditions (T8.2, pre-existing) and its call site
+    (`attemptGmailDraft`) was proven correct against the "not connected" branch; the
+    "successfully creates a real draft" branch needs a real connected account to
+    confirm, same blocker as above.
+
+    Port 3000 (the registered `GOOGLE_REDIRECT_URI`) was occupied by an unrelated
+    Next.js/Turbopack dev server on this machine, not started by me — I did not stop
+    it. Ran the verification dev server on 3014 instead; this doesn't affect the
+    `/connect` redirect itself (which correctly points at port 3000 regardless of
+    what port serves the page that links to it), only that a *real* completed consent
+    round trip would need to land on whatever is actually serving port 3000.
+- surprises: |
+    The RLS analysis wasn't just a nice-to-have this time — it's *why* Gmail drafts
+    must be created with the approver's own client rather than, say, the service
+    role: `message_update`'s "approving" branch's WITH CHECK genuinely requires
+    `approved_by = auth.uid()` on every resulting row, including a bare
+    `gmail_draft_id` update on an already-approved row. Using the service role here
+    (which would have been simpler) would have silently defeated that ownership
+    guarantee. Worth remembering for any future message-table write: check which RLS
+    branch a write needs to satisfy, don't assume a "safe" admin write is actually
+    the more correct choice.
+
+---
+
 ## Handoff
 
-**Status:** Phase 7 complete (7/7). `npm run verify` green (150 tests). Drafting,
-guardrails and the review queue are fully live end-to-end: draft generation (first
-touch + follow-up), the held/release/approve commercial state machine, live pre-send
-checks, and claim/risk highlighting all verified against the real Supabase project, a
-real AI call, and a real browser session across three roles.
+**Status:** Phase 8 complete (5/5). `npm run verify` green (151 tests). The Gmail
+connector is fully wired: OAuth connect/callback/disconnect, approve→draft creation
+with graceful failure/retry, and Settings→Connectors — everything downstream of a
+completed consent screen is proven correct; the consent screen itself needs you.
 
-- Last completed task: T7.7 (all of T7.1–T7.7 shipped together, plus fixing
-  draft.ts/followup.ts's inherited Phase-5-shaped bugs before building on them).
-- Current task: none open — next is T8.1 (Phase 8, Gmail connector).
-- Blocked on: **T8 needs you.** Gmail OAuth requires a real consent-screen round trip
-  — T0.2 says the Google Cloud OAuth client already exists, but I cannot complete
-  `consentUrl()` → Google's screen → callback myself without either your Google
-  account interacting with it once, or you handing me a way to drive that consent
-  screen. Flagging now so it isn't a surprise when T8.1 starts.
-- Known issue carried into T9: `lib/ai/prompts/triage.ts` is the last of the four
-  prompts not yet verified against the real model. It's the "classify" tier
-  (deepseek-flash, presumably not a reasoning model per client.ts's rate table, unlike
-  the three "drafting"-tier prompts that all needed the same fix) — but "presumably"
-  isn't "verified". Check it against a real call before building T9's triage UI on it.
-- Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
-  running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
-  `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
-  `lib/database.types.ts` with `npx supabase gen types typescript --linked > lib/database.types.ts`
-  (direct bash redirect), not `npm run types` (writes UTF-16 on this Windows box).
-- Commit status: Phases 2–6 committed. T7.1–T7.7 changes are uncommitted — awaiting
+- Last completed task: T8.5 (all of T8.1–T8.5 shipped together in one pass).
+- Current task: none open — next is T9.1 (Phase 9, replies and triage).
+- Blocked on: nothing technical for T9. One open item carried from Phase 7, still
+  unresolved: `lib/ai/prompts/triage.ts` has not been verified against the real
+  model — check it (same way research.ts/draft.ts/followup.ts were checked: a real
+  call, confirm `stop_reason: 'end_turn'` not `'max_tokens'`, confirm the JSON shape
+  is actually specified in the OUTPUT section) before building T9's triage UI on it.
+  Given the pattern is now 3-for-3 on the "drafting" tier, don't assume "classify"
+  tier is fine just because it's presumably a non-reasoning model.
+- Real Gmail connection still not completed: whenever you're free to click through
+  Google's consent screen once (as any seeded user, e.g. Rifat), that closes the one
+  remaining gap in Phase 8 — every piece of code on both sides of that click is
+  already verified.
+- Operational notes (unchanged, plus one new): do NOT run `npm run build` while
+  `npm run dev` is running (clobbers `.next`). `npm run seed` does not load
+  `.env.local`; use `npx tsx --env-file=.env.local scripts/seed.ts --reset`.
+  Regenerate `lib/database.types.ts` with
+  `npx supabase gen types typescript --linked > lib/database.types.ts` (direct bash
+  redirect), not `npm run types` (writes UTF-16 on this Windows box). New: port 3000
+  is occupied by an unrelated dev server on this machine — use a different port for
+  `npm run dev` during testing, but remember `GOOGLE_REDIRECT_URI` is fixed at port
+  3000, so a *real* OAuth round trip specifically needs whatever serves that port.
+- Commit status: Phases 2–7 committed. T8.1–T8.5 changes are uncommitted — awaiting
   user go-ahead.
 - Next command for the next agent:
 
@@ -582,7 +715,6 @@ npm run verify
 npm run dev
 ```
 
-Then start T8.1 (Gmail OAuth: connect, callback, refresh token stored in
-`gmail_token`) — but read the "Blocked on" line above first and raise it with the
-user before assuming this can be finished unattended.
+Then start T9.1 (`lib/ai/prompts/triage.ts` — verify against the real model first,
+same as every other prompt file this build has touched).
 

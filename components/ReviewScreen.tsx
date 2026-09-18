@@ -8,6 +8,7 @@ import {
   rejectMessage,
   requestChanges,
   releaseMessage,
+  retryGmailDraft,
 } from '@/lib/message-actions'
 import type { PreSendCheck, HighlightSegment } from '@/lib/messages'
 
@@ -41,6 +42,15 @@ export interface ReviewDetail {
   checks: PreSendCheck[]
 }
 
+export interface NeedsGmailDraftItem {
+  id: string
+  companyName: string
+  subject: string
+  approvedByName: string
+  isMine: boolean
+  lastError: string | null
+}
+
 function fmtAge(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
   const hours = Math.floor(ms / 3_600_000)
@@ -60,6 +70,7 @@ export function ReviewScreen({
   role,
   canApprove,
   canReleaseCommercial,
+  needsGmailDraft,
 }: {
   list: ReviewListItem[]
   selectedId: string | null
@@ -67,6 +78,7 @@ export function ReviewScreen({
   role: string
   canApprove: boolean
   canReleaseCommercial: boolean
+  needsGmailDraft: NeedsGmailDraftItem[]
 }) {
   const router = useRouter()
 
@@ -81,6 +93,10 @@ export function ReviewScreen({
           </p>
         </div>
       </div>
+
+      {canApprove && needsGmailDraft.length > 0 ? (
+        <NeedsGmailDraftCard items={needsGmailDraft} />
+      ) : null}
 
       <div className="grid" style={{ gridTemplateColumns: '300px 1fr', gap: 14, alignItems: 'start' }}>
         <div className="card">
@@ -156,6 +172,61 @@ export function ReviewScreen({
   )
 }
 
+function NeedsGmailDraftCard({ items }: { items: NeedsGmailDraftItem[] }) {
+  const router = useRouter()
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  async function retry(id: string) {
+    setPendingId(id)
+    setErrors((e) => ({ ...e, [id]: '' }))
+    const fd = new FormData()
+    fd.set('messageId', id)
+    const res = await retryGmailDraft(fd)
+    setPendingId(null)
+    if (res.ok) {
+      router.refresh()
+    } else {
+      setErrors((e) => ({ ...e, [id]: res.error ?? 'Could not create the Gmail draft.' }))
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <header>
+        <h3>Approved, awaiting a Gmail draft</h3>
+        <div className="grow" />
+        <span className="tag tag-alert">{items.length}</span>
+      </header>
+      <div className="body grid" style={{ gap: 9 }}>
+        {items.map((it) => (
+          <div key={it.id} className="small" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+            <div>
+              <b>{it.subject}</b> — {it.companyName}
+              <div className="tiny muted">
+                Approved by {it.approvedByName}
+                {it.lastError ? ` · last error: ${it.lastError}` : ''}
+              </div>
+              {errors[it.id] ? (
+                <div className="tiny" style={{ color: 'var(--alert)' }}>
+                  {errors[it.id]}
+                </div>
+              ) : null}
+            </div>
+            {it.isMine ? (
+              <button className="btn btn-sm" onClick={() => retry(it.id)} disabled={pendingId === it.id}>
+                {pendingId === it.id ? '…' : 'Retry'}
+              </button>
+            ) : (
+              <span className="tiny muted">Only {it.approvedByName} can retry — it goes into their mailbox.</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ReviewDetailPane({
   detail,
   canApprove,
@@ -172,6 +243,7 @@ function ReviewDetailPane({
   const [note, setNote] = useState('')
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [gmailNotice, setGmailNotice] = useState<{ ok: boolean; text: string } | null>(null)
 
   const dirty = editValue !== detail.body
   const blockingChecks = detail.checks.filter((c) => c.status === 'block')
@@ -195,10 +267,24 @@ function ReviewDetailPane({
     return run('save', () => editMessage(fd))
   }
 
-  function approve() {
+  async function approve() {
+    setPending('approve')
+    setError(null)
+    setGmailNotice(null)
     const fd = new FormData()
     fd.set('messageId', detail.id)
-    return run('approve', () => approveMessage(fd))
+    const res = await approveMessage(fd)
+    setPending(null)
+    if (!res.ok) {
+      setError(res.error ?? 'Something went wrong.')
+      return
+    }
+    if (res.gmailWarning) {
+      setGmailNotice({ ok: false, text: `Approved, but the Gmail draft failed: ${res.gmailWarning} You can retry from the top of this page.` })
+    } else if (res.gmailDraftId) {
+      setGmailNotice({ ok: true, text: `Approved. Gmail draft ${res.gmailDraftId} created in your mailbox.` })
+    }
+    router.refresh()
   }
 
   function reject() {
@@ -367,9 +453,18 @@ function ReviewDetailPane({
                     {error}
                   </p>
                 ) : null}
+                {gmailNotice ? (
+                  <p
+                    className="small"
+                    style={{ marginTop: 8, color: gmailNotice.ok ? 'var(--verified)' : 'var(--ochre)' }}
+                  >
+                    {gmailNotice.text}
+                  </p>
+                ) : null}
                 <p className="tiny muted" style={{ margin: '10px 0 0' }}>
                   Approving records your name, the exact text approved (as a hash) and the model
-                  version. Nothing is sent — the Gmail draft connector arrives in Phase 8.
+                  version, then creates a Gmail draft in your own mailbox. Nothing is ever sent —
+                  the connector&apos;s OAuth scope is compose-only.
                 </p>
               </div>
             </div>

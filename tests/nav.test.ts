@@ -17,6 +17,11 @@ describe('role-aware navigation', () => {
     expect(control?.items.some((i) => i.href === '/settings')).toBe(true)
   })
 
+  it('shows Settings & access to commercial (needs Connectors for their own Gmail)', () => {
+    const control = navForRole('commercial').find((g) => g.label === 'Control')
+    expect(control?.items.some((i) => i.href === '/settings')).toBe(true)
+  })
+
   it('keeps the core workspace for every role', () => {
     for (const role of ['executive', 'manager', 'commercial', 'auditor'] as const) {
       const groups = navForRole(role)

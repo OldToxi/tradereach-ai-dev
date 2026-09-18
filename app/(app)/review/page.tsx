@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { currentUser, canApprove, canReleaseCommercial } from '@/lib/session'
+import { AUDIT } from '@/lib/audit'
 import { PRODUCT_CONTEXT_COLUMNS } from '@/lib/ai/context'
 import { scanPatterns, RESERVED_LABELS } from '@/lib/guardrails'
 import { isSuppressed } from '@/lib/contacts'
@@ -25,6 +26,41 @@ export default async function ReviewPage({ searchParams }: { searchParams: { id?
     .order('created_at', { ascending: true })
 
   const list = (messages ?? []).filter((m) => m.company)
+
+  // T8.3 — approved messages still missing a Gmail draft (the inline attempt at
+  // approval time failed) need a visible, retryable state, not a silent drop.
+  const { data: needsDraft } = await supabase
+    .from('message')
+    .select('id, subject, company_id, approved_by, company:company_id(name), profiles!message_approved_by_fkey(full_name)')
+    .eq('status', 'approved')
+    .is('gmail_draft_id', null)
+    .order('approved_at', { ascending: false })
+    .limit(20)
+
+  const needsDraftIds = (needsDraft ?? []).map((m) => m.id)
+  const { data: failures } = needsDraftIds.length
+    ? await supabase
+        .from('audit_event')
+        .select('object_id, detail, created_at')
+        .eq('event', AUDIT.GMAIL_FAILED)
+        .in('object_id', needsDraftIds)
+        .order('created_at', { ascending: false })
+    : { data: [] as { object_id: string | null; detail: string | null; created_at: string }[] }
+  const lastFailure = new Map<string, string>()
+  for (const f of failures ?? []) {
+    if (f.object_id && !lastFailure.has(f.object_id)) lastFailure.set(f.object_id, f.detail ?? 'Unknown error')
+  }
+
+  const needsGmailDraft = (needsDraft ?? [])
+    .filter((m) => m.company)
+    .map((m) => ({
+      id: m.id,
+      companyName: m.company!.name,
+      subject: m.subject,
+      approvedByName: m.profiles?.full_name ?? '—',
+      isMine: m.approved_by === user.id,
+      lastError: lastFailure.get(m.id) ?? null,
+    }))
 
   const list_items: ReviewListItem[] = list.map((m) => ({
     id: m.id,
@@ -130,6 +166,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: { id?
       role={user.role}
       canApprove={canApprove(user)}
       canReleaseCommercial={canReleaseCommercial(user)}
+      needsGmailDraft={needsGmailDraft}
     />
   )
 }

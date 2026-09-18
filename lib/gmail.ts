@@ -225,6 +225,41 @@ export async function createDraft(args: DraftArgs): Promise<{ draftId: string; t
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* T8.1/T8.4 — connection status and disconnect, for Settings→Connectors*/
+/* ------------------------------------------------------------------ */
+
+export interface ConnectionStatus {
+  connected: boolean
+  scope: string | null
+  updatedAt: string | null
+}
+
+/** Never returns the refresh token itself — only what the UI needs to show. */
+export async function getConnectionStatus(profileId: string): Promise<ConnectionStatus> {
+  const { data } = await admin
+    .from('gmail_token')
+    .select('scope, updated_at')
+    .eq('profile_id', profileId)
+    .maybeSingle()
+  if (!data) return { connected: false, scope: null, updatedAt: null }
+  return { connected: true, scope: data.scope, updatedAt: data.updated_at }
+}
+
+/** Revokes with Google on a best-effort basis, then always removes the stored row. */
+export async function disconnectToken(profileId: string): Promise<void> {
+  const { data } = await admin.from('gmail_token').select('refresh_token').eq('profile_id', profileId).maybeSingle()
+  if (data?.refresh_token) {
+    try {
+      await oauthClient().revokeToken(data.refresh_token)
+    } catch {
+      // Best-effort — the token may already be invalid at Google's end. Removing our
+      // stored copy is what actually matters; a failed revoke must not block that.
+    }
+  }
+  await admin.from('gmail_token').delete().eq('profile_id', profileId)
+}
+
 /** Reply ingestion, called when the Replies screen loads. No polling, no worker. */
 export async function fetchNewReplies(profileId: string, threadIds: string[]) {
   const auth = await authedClient(profileId)

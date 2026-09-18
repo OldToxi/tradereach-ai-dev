@@ -48,7 +48,11 @@ export const NAV: NavGroup[] = [
     label: 'Control',
     items: [
       { label: 'Audit trail', href: '/audit' },
-      { label: 'Settings & access', href: '/settings', roles: ['manager'] },
+      // Commercial Authority needs this too — they approve released drafts, so their
+      // own Gmail must be connectable on the Connectors tab (T8.4). The page itself
+      // narrows the other tabs (Users, Scoring, AI workflow, Guardrails) to manager
+      // only; commercial sees Connectors alone.
+      { label: 'Settings & access', href: '/settings', roles: ['manager', 'commercial'] },
     ],
   },
 ]

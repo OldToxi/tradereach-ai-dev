@@ -14,10 +14,77 @@ import { sha256 } from './messages'
 import { scanPatterns, RESERVED_LABELS } from './guardrails'
 import { generateFirstTouch, generateFollowup, DraftError } from './ai/draft-runner'
 import { AIError } from './ai/client'
+import { createDraft, ConnectorError } from './gmail'
 
-export type MessageActionState = { ok: boolean; error?: string; companyId?: string; messageId?: string }
+export type MessageActionState = {
+  ok: boolean
+  error?: string
+  companyId?: string
+  messageId?: string
+  gmailWarning?: string
+  gmailDraftId?: string
+}
 
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+
+/**
+ * T8.3 — create the Gmail draft for an approved message. Deliberately never throws:
+ * a connector failure must surface as a visible, retryable state, not roll back the
+ * human approval that already happened. Only the message's own approver may do this
+ * — message_update's RLS "approving" branch requires approved_by = auth.uid() on the
+ * resulting row, which a gmail_draft_id-only update still has to satisfy, and drafts
+ * belonging in the approver's own mailbox is also just correct per the mock's "Safety
+ * rails" card ("Per-user tokens... drafts appear in the approver's own mailbox").
+ */
+async function attemptGmailDraft(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  messageId: string,
+  actor: { id: string; fullName: string; email: string },
+): Promise<{ draftId: string } | { warning: string }> {
+  const fail = async (warning: string) => {
+    await writeAudit({
+      actorId: actor.id,
+      actorLabel: actor.fullName,
+      event: AUDIT.GMAIL_FAILED,
+      objectType: 'message',
+      objectId: messageId,
+      detail: warning,
+    })
+    return { warning }
+  }
+
+  const { data: message } = await supabase
+    .from('message')
+    .select('subject, ai_body, human_body, contact_id')
+    .eq('id', messageId)
+    .single()
+  if (!message || !message.contact_id) return fail('No contact on this message — cannot create a Gmail draft.')
+
+  const { data: contact } = await supabase.from('contact').select('email').eq('id', message.contact_id).single()
+  if (!contact?.email) return fail('This contact has no email on record — cannot create a Gmail draft.')
+
+  try {
+    const { draftId } = await createDraft({
+      profileId: actor.id,
+      from: `${actor.fullName} <${actor.email}>`,
+      to: contact.email,
+      subject: message.subject,
+      body: message.human_body ?? message.ai_body,
+    })
+    await supabase.from('message').update({ gmail_draft_id: draftId }).eq('id', messageId)
+    await writeAudit({
+      actorId: actor.id,
+      actorLabel: actor.fullName,
+      event: AUDIT.GMAIL_DRAFT_CREATED,
+      objectType: 'message',
+      objectId: messageId,
+      detail: `Draft ${draftId} created in ${actor.fullName}'s mailbox`,
+    })
+    return { draftId }
+  } catch (err) {
+    return fail(err instanceof ConnectorError ? err.userFacing : 'Could not create the Gmail draft.')
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* T7.1/T7.7 — draft the next outreach message for a company           */
@@ -169,9 +236,52 @@ export async function approveMessage(formData: FormData): Promise<MessageActionS
     detail: `Approved. sha256 ${hash.slice(0, 12)}…`,
   })
 
+  const gmailResult = await attemptGmailDraft(supabase, messageId, actor)
+
   revalidatePath('/review')
   revalidatePath(`/companies/${message.company_id}`)
-  return { ok: true, companyId: message.company_id }
+  return 'warning' in gmailResult
+    ? { ok: true, companyId: message.company_id, messageId, gmailWarning: gmailResult.warning }
+    : { ok: true, companyId: message.company_id, messageId, gmailDraftId: gmailResult.draftId }
+}
+
+/* ------------------------------------------------------------------ */
+/* T8.3 — retry Gmail draft creation after a connector failure          */
+/* ------------------------------------------------------------------ */
+
+export async function retryGmailDraft(formData: FormData): Promise<MessageActionState> {
+  let actor
+  try {
+    actor = await requirePermission(canApprove, 'create a Gmail draft')
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Not allowed' }
+  }
+
+  const messageId = (formData.get('messageId') as string)?.trim()
+  if (!messageId || !isUuid(messageId)) return { ok: false, error: 'Missing message.' }
+
+  const supabase = await createServerClient()
+  const { data: message } = await supabase
+    .from('message')
+    .select('status, approved_by, gmail_draft_id, company_id')
+    .eq('id', messageId)
+    .single()
+  if (!message) return { ok: false, error: 'Message not found.' }
+  if (message.status !== 'approved') return { ok: false, error: 'Only an approved message can get a Gmail draft.' }
+  if (message.gmail_draft_id) return { ok: false, error: 'A Gmail draft already exists for this message.' }
+  if (message.approved_by !== actor.id) {
+    return {
+      ok: false,
+      error: 'Only the person who approved this message can create its Gmail draft — it goes into their own mailbox.',
+    }
+  }
+
+  const result = await attemptGmailDraft(supabase, messageId, actor)
+  revalidatePath('/review')
+  revalidatePath(`/companies/${message.company_id}`)
+  return 'warning' in result
+    ? { ok: false, error: result.warning, companyId: message.company_id }
+    : { ok: true, companyId: message.company_id, messageId, gmailDraftId: result.draftId }
 }
 
 export async function rejectMessage(formData: FormData): Promise<MessageActionState> {
