@@ -1263,6 +1263,11 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     Deliberately NOT a fifth model call — AGENTS.md §5 caps us at four prompts, and
     research is already a prompt. The scores underneath are AI output and stay AI-badged;
     the wording is deterministic so it can never invent a claim the research didn't score.
+    Follow-up (same task): the empty state now distinguishes "no companies for this
+    product" from "companies on file but none researched", and the seed gained three
+    ceramic-tableware companies (Japan/UAE/Brazil — the mock's stated markets) with
+    contacts, facts and sources so "Ceramic tableware" shows real market-fit data instead
+    of the empty state.
 - surprises: none.
 
 ### T13.2 — Outreach "Sent & follow-ups" screen

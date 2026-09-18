@@ -121,6 +121,9 @@ const COMPANIES: Array<{ key: string; name: string; website: string; market: str
   { key: 'osaka', name: 'Osaka Agri Textiles', website: 'osakaagri.test', market: 'Japan', company_type: 'Converter', stage: 'reply', fit_score: 76, owner: 'nusrat.jahan@anwargroup.test' },
   { key: 'gulfpack', name: 'Gulf Pack Industries', website: 'gulfpack.test', market: 'UAE', company_type: 'Converter', stage: 'company_research', fit_score: 52, owner: 'nusrat.jahan@anwargroup.test' },
   { key: 'thames', name: 'Thames Eco Supply Co.', website: 'thameseco.test', market: 'United Kingdom', company_type: 'Distributor', stage: 'qualification', fit_score: 69, owner: 'rifat.hasan@anwargroup.test' },
+  { key: 'arita', name: 'Arita Trading K.K.', website: 'aritatrading.test', market: 'Japan', company_type: 'Distributor', stage: 'qualification', fit_score: 74, owner: 'nusrat.jahan@anwargroup.test' },
+  { key: 'aldana', name: 'Al Dana Home & Table LLC', website: 'aldanahome.test', market: 'UAE', company_type: 'Retail buyer', stage: 'company_research', fit_score: 62, owner: 'nusrat.jahan@anwargroup.test' },
+  { key: 'mare', name: 'Cerâmica Maré Importadora Ltda', website: 'ceramaramare.test', market: 'Brazil', company_type: 'Importer', stage: 'contact_identification', fit_score: 49, owner: 'tanvir.alam@anwargroup.test' },
 ]
 
 /**
@@ -141,6 +144,9 @@ const PRODUCT_BY_KEY: Record<string, string> = {
   osaka: 'Jute yarn',
   gulfpack: 'Woven jute bags',
   thames: 'Knit garments',
+  arita: 'Ceramic tableware',
+  aldana: 'Ceramic tableware',
+  mare: 'Ceramic tableware',
 }
 
 /** [key, value, provenance, isQualificationCriterion] */
@@ -177,6 +183,22 @@ const FACTS: Record<string, Array<[string, string, 'verified' | 'unverified' | '
     ['certification_match', 'JAS organic preferred', 'verified', true],
     ['product_line', 'Garden and agri-textile distribution', 'verified', false],
   ],
+  arita: [
+    ['imports_category', 'Imports ceramic and porcelain tableware for retail', 'verified', true],
+    ['certification_match', 'Requires LFGB/FDA on food-contact ware, which we hold', 'verified', true],
+    ['decision_maker_found', 'Hana Sato, Tableware Buyer', 'verified', true],
+    ['product_line', 'Hotel and restaurant tableware distribution', 'verified', false],
+  ],
+  aldana: [
+    ['imports_category', 'Runs tableware and home ranges across Gulf retail', 'unverified', true],
+    ['decision_maker_found', 'Yousef Al Marri, Category Manager', 'unverified', true],
+    ['certification_match', 'LFGB expected for food-contact ware', 'unverified', true],
+  ],
+  mare: [
+    ['imports_category', 'Imports home goods into Brazil; tableware line under review', 'unverified', true],
+    ['decision_maker_found', 'Beatriz Nogueira, Import Manager', 'unverified', true],
+    ['certification_match', 'INMETRO marking route still to confirm', 'unverified', true],
+  ],
 }
 
 const CONTACTS: Array<{ company: string; full_name: string; role_title: string; email: string; email_source: string; provenance: Provenance; lawful_basis: string; is_primary: boolean }> = [
@@ -190,6 +212,9 @@ const CONTACTS: Array<{ company: string; full_name: string; role_title: string; 
   { company: 'bosphorus', full_name: 'Emre Koç', role_title: 'Procurement Lead', email: 'e.koc@bosphorusambalaj.test', email_source: 'Company site', provenance: 'verified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
   { company: 'verde', full_name: 'Camila Souza', role_title: 'Commercial Director', email: 'c.souza@verdeemb.test', email_source: 'Directory listing', provenance: 'unverified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
   { company: 'thames', full_name: 'Harriet Doyle', role_title: 'Buying Manager', email: 'h.doyle@thameseco.test', email_source: 'Guessed pattern — unverified', provenance: 'unverified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
+  { company: 'arita', full_name: 'Hana Sato', role_title: 'Tableware Buyer', email: 'h.sato@aritatrading.test', email_source: 'Company site, team page', provenance: 'verified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
+  { company: 'aldana', full_name: 'Yousef Al Marri', role_title: 'Category Manager', email: 'y.almarri@aldanahome.test', email_source: 'Directory listing', provenance: 'unverified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
+  { company: 'mare', full_name: 'Beatriz Nogueira', role_title: 'Import Manager', email: 'b.nogueira@ceramaramare.test', email_source: 'Guessed pattern — unverified', provenance: 'unverified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
 ]
 
 const SOURCES = [
@@ -201,6 +226,10 @@ const SOURCES = [
   { company: 'nordfiber', title: 'Handelsregister extract', source_type: 'Registry', quality: 'primary' },
   { company: 'nordfiber', title: 'nordfiber.test/agri-packaging', source_type: 'Company site', quality: 'primary' },
   { company: 'kyoto', title: 'kyotogreen.test/about', source_type: 'Company site', quality: 'secondary' },
+  { company: 'arita', title: 'aritatrading.test/tableware', source_type: 'Company site', quality: 'primary' },
+  { company: 'arita', title: 'JETRO import statistics 2025', source_type: 'Trade data', quality: 'primary' },
+  { company: 'aldana', title: 'B2B directory listing', source_type: 'Directory', quality: 'weak' },
+  { company: 'mare', title: 'ceramaramare.test/catalogo', source_type: 'Company site', quality: 'secondary' },
 ]
 
 const DRAFT_BODY = `Dear Ms Brauer,
