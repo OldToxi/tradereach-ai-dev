@@ -31,6 +31,7 @@ const PHASE_NAMES = {
   10: 'Meetings & pipeline',
   11: 'Control surfaces',
   12: 'Tests, docs, deploy',
+  13: 'Closing the stubbed surfaces',
 }
 
 const plan = readFileSync(PLAN, 'utf8')

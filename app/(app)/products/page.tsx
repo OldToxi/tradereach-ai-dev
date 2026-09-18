@@ -1,6 +1,7 @@
 import { currentUser } from '@/lib/session'
 import { createServerClient } from '@/lib/supabase/server'
-import { canManageCatalog, marketsForProduct } from '@/lib/catalog'
+import { canManageCatalog, marketsForProduct, marketFitSummary } from '@/lib/catalog'
+import type { MarketFitSummary } from '@/lib/catalog'
 import { ProductsScreen } from '@/components/ProductsScreen'
 import type { ProductView } from '@/components/ProductModal'
 
@@ -12,10 +13,12 @@ export default async function ProductsPage() {
     { data: products, error: productsError },
     { data: markets },
     { data: companies },
+    { data: researchRuns },
   ] = await Promise.all([
     supabase.from('product').select('*').order('name'),
     supabase.from('market').select('country, product_focus'),
-    supabase.from('company').select('product_id, stage'),
+    supabase.from('company').select('id, product_id, market, stage'),
+    supabase.from('research_run').select('company_id, score'),
   ])
 
   if (productsError) {
@@ -35,6 +38,8 @@ export default async function ProductsPage() {
     )
   }
 
+  const companyById = new Map((companies ?? []).map((c) => [c.id, c]))
+
   const list: ProductView[] = (products ?? []).map((p) => ({
     ...p,
     targetMarkets: marketsForProduct(p.name, markets ?? []),
@@ -43,5 +48,15 @@ export default async function ProductsPage() {
     ).length,
   }))
 
-  return <ProductsScreen products={list} canEdit={canManageCatalog(user.role)} />
+  const marketFit: Record<string, MarketFitSummary> = {}
+  for (const p of products ?? []) {
+    const runs = (researchRuns ?? [])
+      .filter((r) => companyById.get(r.company_id)?.product_id === p.id)
+      .map((r) => ({ market: companyById.get(r.company_id)!.market, score: r.score }))
+    marketFit[p.id] = marketFitSummary(runs)
+  }
+
+  return (
+    <ProductsScreen products={list} canEdit={canManageCatalog(user.role)} marketFit={marketFit} />
+  )
 }

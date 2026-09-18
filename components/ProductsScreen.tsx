@@ -2,13 +2,17 @@
 
 import { useState } from 'react'
 import { ProductModal, type ProductView } from './ProductModal'
+import { marketFitText } from '@/lib/catalog'
+import type { MarketFitSummary } from '@/lib/catalog'
 
 export function ProductsScreen({
   products,
   canEdit,
+  marketFit,
 }: {
   products: ProductView[]
   canEdit: boolean
+  marketFit: Record<string, MarketFitSummary>
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(products[0]?.id ?? null)
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; product?: ProductView } | null>(null)
@@ -149,13 +153,24 @@ export function ProductsScreen({
               </span>
               Market fit for {selected.name.toLowerCase()}
             </div>
-            <p className="muted">
-              Market-fit analysis lands with the research phase. No AI text is shown until a real
-              run exists — AI output is never presented as fact.
-            </p>
-            <div className="foot">
-              <span>Available after research (Phase 5)</span>
-            </div>
+            {marketFit[selected.id]?.hasData ? (
+              <>
+                <p>{marketFitText(marketFit[selected.id])}</p>
+                <div className="foot">
+                  <span>
+                    Based on {marketFit[selected.id].researchedCompanies} researched{' '}
+                    {marketFit[selected.id].researchedCompanies === 1 ? 'company' : 'companies'}{' '}
+                    across {marketFit[selected.id].marketsAnalyzed}{' '}
+                    {marketFit[selected.id].marketsAnalyzed === 1 ? 'market' : 'markets'}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="muted">
+                No research runs yet. Run research on a company from the Companies screen —
+                the fit scores land here, and no AI text is shown until a real run exists.
+              </p>
+            )}
           </div>
         </div>
       ) : null}

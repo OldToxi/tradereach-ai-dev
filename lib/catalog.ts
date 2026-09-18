@@ -125,3 +125,88 @@ export function marketGuardrails(market: {
     legal_note: market.legal_note?.trim() || DEFAULT_LEGAL_NOTE,
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Market fit (T13.1) — a deterministic read-out of stored research     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The products screen's "Market fit" panel is NOT a new model call — AGENTS.md §5 caps
+ * us at four prompts, and research is already a prompt. What is shown here is an
+ * aggregate of the research scores the `research` prompt already wrote to
+ * `research_run`, grouped by the market each researched company sits in. The wording is
+ * deterministic, but the scores underneath are AI output and stay AI-badged.
+ */
+export interface MarketFitInput {
+  market: string
+  score: number
+}
+
+export interface MarketFitSummary {
+  hasData: boolean
+  researchedCompanies: number
+  marketsAnalyzed: number
+  strongest: string[]
+  strongestScore: number | null
+  weakest: string[]
+  weakestScore: number | null
+  byMarket: Array<{ market: string; companies: number; avgScore: number }>
+}
+
+export function marketFitSummary(runs: MarketFitInput[]): MarketFitSummary {
+  if (runs.length === 0) {
+    return {
+      hasData: false,
+      researchedCompanies: 0,
+      marketsAnalyzed: 0,
+      strongest: [],
+      strongestScore: null,
+      weakest: [],
+      weakestScore: null,
+      byMarket: [],
+    }
+  }
+
+  const totals = new Map<string, { total: number; count: number }>()
+  for (const r of runs) {
+    const cur = totals.get(r.market) ?? { total: 0, count: 0 }
+    cur.total += r.score
+    cur.count += 1
+    totals.set(r.market, cur)
+  }
+
+  const byMarket = [...totals.entries()]
+    .map(([market, v]) => ({ market, companies: v.count, avgScore: Math.round(v.total / v.count) }))
+    .sort((a, b) => b.avgScore - a.avgScore)
+
+  const top = byMarket[0].avgScore
+  const bottom = byMarket[byMarket.length - 1].avgScore
+  const strongest = byMarket.filter((r) => r.avgScore === top).map((r) => r.market)
+  // A single market can't be both strongest and weakest — the mock only names a
+  // "weakest" when there is a real spread to speak of.
+  const weakest = byMarket.length > 1 && bottom !== top
+    ? byMarket.filter((r) => r.avgScore === bottom).map((r) => r.market)
+    : []
+
+  return {
+    hasData: true,
+    researchedCompanies: runs.length,
+    marketsAnalyzed: byMarket.length,
+    strongest,
+    strongestScore: top,
+    weakest,
+    weakestScore: weakest.length ? bottom : null,
+    byMarket,
+  }
+}
+
+/** The one-sentence read-out shown under the AI badge. */
+export function marketFitText(summary: MarketFitSummary): string {
+  if (!summary.hasData) return ''
+  const list = (arr: string[]) => arr.join(' and ')
+  const strongest = `Strongest fit sits with ${list(summary.strongest)} (average fit score ${summary.strongestScore}).`
+  const weakest = summary.weakest.length
+    ? ` Weakest fit is ${list(summary.weakest)} (average fit score ${summary.weakestScore}).`
+    : ''
+  return strongest + weakest
+}

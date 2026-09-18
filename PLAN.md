@@ -218,6 +218,28 @@ likely thing to go wrong.
 
 ---
 
+## Phase 13 — Closing the two stubbed surfaces
+
+The products "market fit" panel and the outreach screen were never scheduled in the
+original plan — the products AI panel shipped as a placeholder and `/outreach` as a
+`<Placeholder>`. Both are closed here without adding a prompt: AGENTS.md §5 caps us at
+four prompts, so market fit is a deterministic read-out of scores the `research` prompt
+already stored, and the outreach list is assembled from `message`/`reply`/`next_touch_at`.
+
+- [x] T13.1 Products — "Market fit" panel. `lib/catalog.ts#marketFitSummary` aggregates
+      `research_run.score` by the company's market (joined through `company.product_id`),
+      and `marketFitText` writes the deterministic one-liner. `app/(app)/products/page.tsx`
+      joins research runs to products; `components/ProductsScreen.tsx` renders the panel
+      with the AI badge and a "based on N researched companies" footer. No new prompt.
+- [x] T13.2 Outreach — "Sent & follow-ups". `lib/outreach.ts#computeOutreach` derives one
+      row per company from `message` (status `sent`/`approved`) plus the reply thread and
+      `company.next_touch_at`, reusing the T7.7 cadence helpers from `lib/messages.ts`.
+      `app/(app)/outreach/page.tsx` fetches through the user client (RLS-scoped);
+      `components/OutreachScreen.tsx` renders the table. The mock's "What is working" AI
+      block is omitted deliberately — no prompt produces it.
+
+---
+
 ## Pre-written files — do not rewrite from scratch
 
 These ship with the bundle, already reviewed. They are the files most likely to be

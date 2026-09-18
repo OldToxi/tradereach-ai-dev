@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`█████████████████████████████░` **97%** — 76 of 78 tasks complete
+`█████████████████████████████░` **98%** — 78 of 80 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -39,6 +39,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
 | 12 · Tests, docs, deploy | 5 | 6 |
+| 13 · Closing the stubbed surfaces | 2 | 2 ✓ |
 <!-- PROGRESS:END -->
 
 Regenerate with `npm run progress`. Do not hand-edit between the markers.
@@ -1241,43 +1242,101 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     the repo is now 76/78 with only those two human deploy tasks outstanding.
 - surprises: none.
 
+### T13.1 — Products "Market fit" panel (deterministic, no new prompt)
+- when: 2026-09-19 01:15 UTC
+- agent: claude-code
+- files: lib/catalog.ts, app/(app)/products/page.tsx, components/ProductsScreen.tsx, tests/catalog.test.ts
+- done: |
+    Replaced the "Market-fit analysis lands with the research phase" placeholder with a
+    real panel. `lib/catalog.ts#marketFitSummary` aggregates `research_run.score` grouped
+    by each researched company's market (joined through `company.product_id`), and
+    `marketFitText` writes the deterministic one-liner ("Strongest fit sits with … ,
+    weakest fit is …"). The products page now fetches `research_run (company_id, score)`
+    alongside companies and builds a per-product summary; `ProductsScreen` renders it
+    under the existing AI badge with a "Based on N researched companies across M markets"
+    footer, and keeps a useful empty state when no runs exist.
+- verified: |
+    `npm run verify` green — 271 tests, 24 files (new market-fit cases in
+    tests/catalog.test.ts). Manually confirmed the panel renders for "Jute yarn" from the
+    seeded research runs.
+- notes: |
+    Deliberately NOT a fifth model call — AGENTS.md §5 caps us at four prompts, and
+    research is already a prompt. The scores underneath are AI output and stay AI-badged;
+    the wording is deterministic so it can never invent a claim the research didn't score.
+- surprises: none.
+
+### T13.2 — Outreach "Sent & follow-ups" screen
+- when: 2026-09-19 01:15 UTC
+- agent: claude-code
+- files: lib/outreach.ts, app/(app)/outreach/page.tsx, components/OutreachScreen.tsx, tests/outreach.test.ts
+- done: |
+    Replaced the `<Placeholder title="Sent & follow-ups" phase="T7.7"/>` page with a real
+    screen. `lib/outreach.ts#computeOutreach` derives one row per company from `message`
+    (status `sent`/`approved`) plus the reply thread and `company.next_touch_at`, reusing
+    the T7.7 cadence helpers (`nextTouchNumber`/`cadenceFor`/`isFollowupDue`) from
+    `lib/messages.ts` and the triage `next_action` labels from `lib/replies.ts`. The page
+    fetches through the user client (RLS-scoped via `company_visible`), and
+    `OutreachScreen` renders the Company / Contact / Message / Approved by / Status /
+    Next step table, with overdue follow-ups sorted first.
+- verified: |
+    `npm run verify` green — 271 tests, 24 files (new tests/outreach.test.ts). `/outreach`
+    compiles and renders in the running dev server with the seeded state (Yıldız replied,
+    Sahara follow-up due today, Bosphorus due tomorrow, Verde nurture scheduled).
+- notes: |
+    The mock's "What is working" AI block and the "Opens" column are omitted — no prompt
+    produces that narrative (AGENTS.md §5), and the schema has no open/read tracking. The
+    "Approved by" name resolves via `message.approved_by → profiles(full_name)`; RLS
+    hides other profiles from executives, so that cell degrades to "—" for non-manager
+    roles, which is the intended permission behaviour.
+- surprises: |
+    The `/outreach` placeholder carried a misleading `T7.7` label — T7.7 built the
+    follow-up prompt + cadence, never the screen. The screen was simply never scheduled
+    in the plan, which is why it shipped as a placeholder. Added as Phase 13.
+
 ---
 
 ## Handoff
 
-**Status:** Phase 12 complete except the two human deploy steps. All agent-able work is
-done (76/78). The only outstanding tasks are `T0.5` and `T12.5`, which require a human
-with GitHub/Vercel/Google access.
+**Status:** Phase 13 complete. The two stubbed surfaces from the original plan are now
+built — the Products "Market fit" panel (T13.1) and the "Sent & follow-ups" screen
+(T13.2) — without adding a fifth AI prompt. `npm run verify` green (271 tests, 24 files).
 
-- Last completed task: T12.6 (final pass). `npm run verify` green (254 tests, 23 files);
-  `npx playwright test` green; `npm run build` green with `AUTH_MODE=live`; the
-  stub-auth guard verified failing loudly under `AUTH_MODE=stub` in a production build.
-- Current task: none open for an agent. T12.5 (deploy to Vercel) and T0.5 (import repo +
-  set env vars) are human steps.
-- Blocked on (human): create the GitHub repo and import it into Vercel (`SETUP.md` step
-  1 and 5), set every `.env.example` variable, set `AUTH_MODE=live` (never `stub`), then
-  add the deployed Vercel domain to the Google OAuth redirect URIs. Smoke-test the
-  twelve-step journey on the deployed URL.
-- New files this task: none (`.env.example` gained optional `SEED_PASSWORD` +
-  `E2E_*` entries; README/PLAN/WORKLOG updated).
+- Last completed task: T13.2 (outreach screen), immediately after T13.1 (market-fit
+  panel). Both committed together.
+- Current task: none open for an agent. `T0.5` (import repo into Vercel + set env vars)
+  and `T12.5` (deploy to Vercel) remain human steps — 78 of 80 tasks done.
+- New files this task: `lib/outreach.ts` (pure `computeOutreach` + label helpers),
+  `components/OutreachScreen.tsx`, `tests/outreach.test.ts`. Changed:
+  `lib/catalog.ts` (+`marketFitSummary`/`marketFitText`), `app/(app)/products/page.tsx`
+  (fetches `research_run` and joins to products), `components/ProductsScreen.tsx`
+  (renders the market-fit panel), `app/(app)/outreach/page.tsx` (real screen, no longer
+  a `<Placeholder>`), `tests/catalog.test.ts`, `PLAN.md` (new Phase 13), and
+  `scripts/progress.mjs` (phase-13 name in the table).
+- Blocked on (human): nothing new. Deployment still needs GitHub/Vercel/Google access —
+  see `SETUP.md` steps 1 and 5, set every `.env.example` variable, `AUTH_MODE=live`
+  (never `stub`), add the deployed Vercel domain to the Google OAuth redirect URIs, then
+  smoke-test the twelve-step journey on the deployed URL.
+- Design notes (Phase 13, deliberately not new prompts — AGENTS.md §5 "four prompts
+  only"): the market-fit panel aggregates `research_run.score` by market; the outreach
+  list reuses `lib/messages.ts` cadence + `lib/replies.ts` next-action labels. The mock's
+  "What is working" AI block and the "Opens" column are omitted (no prompt produces that
+  narrative; no open/read tracking in the schema). "Approved by" degrades to "—" for
+  non-manager roles because `profiles` RLS hides other users from executives — intended.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
-  running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
-  `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
-  `lib/database.types.ts` with `supabase gen types typescript --linked` (then re-encode
-  to UTF-8 on Windows — the plain `>` redirect emits UTF-16). `supabase migration up`
-  targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
-  tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
-  OAuth consent.
+  running (clobbers `.next`). A dev server is currently up on **port 3000** for the local
+  demo (`cmd /c npm run dev -- --port 3000 > dev-server.log 2>&1`). `npm run seed` does
+  not load `.env.local`; use `npx tsx --env-file=.env.local scripts/seed.ts --reset`.
+  Regenerate `lib/database.types.ts` with `supabase gen types typescript --linked` (then
+  re-encode to UTF-8 on Windows — the plain `>` redirect emits UTF-16). `supabase db push`
+  targets the remote; existing Gmail tokens predate `gmail.readonly` and will 403 until
+  the OAuth consent is re-run.
 - E2E notes: the Playwright CDN is unreachable here, so the suite uses the system Chrome
-  (`channel: 'chrome'`); the dev server runs on port 3001 (`E2E_BASE_URL`). Run e2e with
-  `npm run test:e2e` while `npm run dev` is up and the Supabase demo project is seeded.
-- Commit status: T12.6 not yet committed — commit next.
+  (`channel: 'chrome'`); `E2E_BASE_URL` defaults to `http://localhost:3001` but the
+  current dev server is on 3000 — set `E2E_BASE_URL=http://localhost:3000` before
+  `npm run test:e2e`.
 - Next command for the next agent (or human):
 
 ```
 npm run progress
 ```
-
-The repo is functionally complete. What remains is deployment, which is documented in
-`SETUP.md` and `README.md`.
 

@@ -12,6 +12,8 @@ import {
   MARKET_STATUS_LABELS,
   MARKET_PRIORITY_CLASS,
   MARKET_STATUS_CLASS,
+  marketFitSummary,
+  marketFitText,
 } from '../lib/catalog'
 
 describe('catalog write permission', () => {
@@ -112,5 +114,54 @@ describe('marketGuardrails', () => {
 
   it('preserves a zero weekly cap instead of treating it as unset', () => {
     expect(marketGuardrails({ ...base, weekly_outreach_cap: 0 }).weekly_outreach_cap).toBe(0)
+  })
+})
+
+describe('marketFitSummary', () => {
+  it('is empty with no research runs', () => {
+    const s = marketFitSummary([])
+    expect(s.hasData).toBe(false)
+    expect(s.researchedCompanies).toBe(0)
+    expect(marketFitText(s)).toBe('')
+  })
+
+  it('averages scores per market and names the strongest', () => {
+    const s = marketFitSummary([
+      { market: 'Türkiye', score: 91 },
+      { market: 'Germany', score: 87 },
+      { market: 'Germany', score: 81 },
+      { market: 'Japan', score: 78 },
+      { market: 'Japan', score: 76 },
+    ])
+    expect(s.hasData).toBe(true)
+    expect(s.researchedCompanies).toBe(5)
+    expect(s.marketsAnalyzed).toBe(3)
+    expect(s.strongest).toEqual(['Türkiye'])
+    expect(s.strongestScore).toBe(91)
+    expect(s.weakest).toEqual(['Japan'])
+    expect(s.weakestScore).toBe(77)
+  })
+
+  it('lists every tied market in strongest, and has no weakest for a single market', () => {
+    const s = marketFitSummary([
+      { market: 'Türkiye', score: 80 },
+      { market: 'Germany', score: 80 },
+    ])
+    expect(s.strongest).toEqual(['Türkiye', 'Germany'])
+    expect(s.weakest).toEqual([])
+
+    const single = marketFitSummary([{ market: 'Japan', score: 50 }])
+    expect(single.strongest).toEqual(['Japan'])
+    expect(single.weakest).toEqual([])
+  })
+
+  it('renders a deterministic one-sentence read-out', () => {
+    const s = marketFitSummary([
+      { market: 'Türkiye', score: 91 },
+      { market: 'Japan', score: 50 },
+    ])
+    expect(marketFitText(s)).toBe(
+      'Strongest fit sits with Türkiye (average fit score 91). Weakest fit is Japan (average fit score 50).',
+    )
   })
 })
