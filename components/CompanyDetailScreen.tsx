@@ -15,6 +15,14 @@ import {
   provenanceLabel,
 } from '@/lib/company-facts'
 import { addSource, addAnalystNote, promoteFactToVerified, changeStage } from '@/lib/company-actions'
+import { runResearch, createTask, overridePriority, disqualifyCompany } from '@/lib/research-actions'
+import {
+  breakdownBarClass,
+  RECOMMENDATION_LABELS,
+  RESEARCH_DEPTHS,
+  DISQUALIFY_REASONS,
+  type ResearchDepth,
+} from '@/lib/research'
 
 export interface FactView {
   id: string
@@ -55,6 +63,22 @@ export interface AuditView {
   createdAt: string
 }
 
+export interface ResearchView {
+  summary: string
+  opportunitySummary: string
+  gaps: Array<{ field: string; whyItMatters: string; blocksQualification: boolean; howToFind: string }>
+  score: number
+  breakdown: Array<{ criterion: string; max: number; awarded: number; reason: string }>
+  suitability: {
+    recommendation: 'proceed' | 'research_more' | 'nurture' | 'disqualify'
+    reasoning: string
+    confidence: 'low' | 'medium' | 'high'
+    wouldChangeIf: string
+  }
+  priorityReason: string | null
+  createdAt: string
+}
+
 export interface CompanyDetail {
   id: string
   name: string
@@ -64,8 +88,12 @@ export interface CompanyDetail {
   stage: string
   fitScore: number | null
   disqualifiedReason: string | null
+  ownerId: string | null
   ownerName: string | null
   productName: string | null
+  priorityOverrideReason: string | null
+  rank: { rank: number; total: number; isOverride: boolean } | null
+  research: ResearchView | null
   facts: FactView[]
   sources: SourceView[]
   contacts: ContactView[]
@@ -112,12 +140,16 @@ export function CompanyDetailScreen({
   company,
   role,
   canWrite,
+  canOverridePriority,
 }: {
   company: CompanyDetail
   role: string
   canWrite: boolean
+  canOverridePriority: boolean
 }) {
   const [tab, setTab] = useState('overview')
+  const [researchOpen, setResearchOpen] = useState(false)
+  const [disqualifyOpen, setDisqualifyOpen] = useState(false)
 
   const criterionFacts = company.facts.filter((f) => f.isQualificationCriterion)
   const unverifiedCriteria = criterionFacts.filter((f) => f.provenance !== 'verified').length
@@ -159,6 +191,17 @@ export function CompanyDetailScreen({
           </div>
         </div>
         <div style={{ display: 'grid', gap: 8, justifyItems: 'end', alignContent: 'start' }}>
+          {canWrite && company.stage !== 'disqualified' ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button className="btn btn-sm" onClick={() => setResearchOpen(true)}>
+                {company.research ? 'Re-run research' : 'Run AI research'}
+              </button>
+              <NurtureButton company={company} />
+              <button className="btn btn-sm btn-warn" onClick={() => setDisqualifyOpen(true)}>
+                Disqualify
+              </button>
+            </div>
+          ) : null}
           <div className="tiny muted">
             Owner: {company.ownerName ?? '—'}
           </div>
@@ -177,6 +220,9 @@ export function CompanyDetailScreen({
         ))}
       </div>
 
+      {researchOpen ? <ResearchModal company={company} onClose={() => setResearchOpen(false)} /> : null}
+      {disqualifyOpen ? <DisqualifyModal company={company} onClose={() => setDisqualifyOpen(false)} /> : null}
+
       {tab === 'overview' ? (
         <OverviewPane
           company={company}
@@ -190,11 +236,200 @@ export function CompanyDetailScreen({
       ) : null}
       {tab === 'research' ? <ResearchPane company={company} canWrite={canWrite} /> : null}
       {tab === 'qualification' ? (
-        <QualificationPane company={company} canWrite={canWrite} status={status} />
+        <QualificationPane
+          company={company}
+          canWrite={canWrite}
+          status={status}
+          canOverridePriority={canOverridePriority}
+        />
       ) : null}
       {tab === 'people' ? <PeoplePane company={company} /> : null}
       {tab === 'comms' ? <CommsPane /> : null}
       {tab === 'history' ? <HistoryPane company={company} /> : null}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Header actions — run research, nurture, disqualify (T5.3, T5.6)     */
+/* ------------------------------------------------------------------ */
+
+function NurtureButton({ company }: { company: CompanyDetail }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+
+  async function runNurture(formData: FormData) {
+    setPending(true)
+    const res = await changeStage(formData)
+    setPending(false)
+    if (res.ok) router.refresh()
+  }
+
+  if (company.stage === 'nurture') return null
+
+  return (
+    <form action={runNurture} style={{ display: 'inline-flex' }}>
+      <input type="hidden" name="companyId" value={company.id} />
+      <input type="hidden" name="stage" value="nurture" />
+      <button className="btn btn-sm" type="submit" disabled={pending}>
+        {pending ? '…' : 'Nurture'}
+      </button>
+    </form>
+  )
+}
+
+function ResearchModal({ company, onClose }: { company: CompanyDetail; onClose: () => void }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<{ score: number; costUsd: number } | null>(null)
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setPending(true)
+    setError(null)
+    const res = await runResearch(new FormData(e.currentTarget))
+    setPending(false)
+    if (res.ok) {
+      router.refresh()
+      setResult({ score: res.score!, costUsd: res.costUsd! })
+    } else {
+      setError(res.error ?? 'Research failed.')
+    }
+  }
+
+  return (
+    <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Run AI research">
+        <header>
+          <h3>Run AI research</h3>
+          <div className="grow" />
+          <button className="btn btn-sm" type="button" onClick={onClose}>
+            Close
+          </button>
+        </header>
+        {result ? (
+          <div className="body">
+            <p className="small">
+              Research complete — fit score <b>{result.score}</b>/100. Run cost{' '}
+              {result.costUsd.toFixed(4)} USD, recorded in the audit trail.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <div className="body">
+              <input type="hidden" name="companyId" value={company.id} />
+              <p className="small">
+                The run reads the company&apos;s recorded facts and sources, then writes a
+                profile, lists what is missing, and proposes a fit score. Nothing it writes is
+                treated as verified.
+              </p>
+              <label className="f" htmlFor="research-depth">
+                Depth
+              </label>
+              <select className="f" id="research-depth" name="depth" defaultValue="standard">
+                {(Object.entries(RESEARCH_DEPTHS) as Array<[ResearchDepth, string]>).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <p className="tiny muted" style={{ marginTop: 12 }}>
+                Model, prompt version and cost are written to the audit trail.
+              </p>
+              {error ? (
+                <p className="fm-err" role="alert">
+                  {error}
+                </p>
+              ) : null}
+            </div>
+            <footer>
+              <button className="btn" type="button" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="btn btn-pri" type="submit" disabled={pending}>
+                {pending ? 'Running…' : 'Start research'}
+              </button>
+            </footer>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DisqualifyModal({ company, onClose }: { company: CompanyDetail; onClose: () => void }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setPending(true)
+    setError(null)
+    const res = await disqualifyCompany(new FormData(e.currentTarget))
+    setPending(false)
+    if (res.ok) {
+      router.refresh()
+      onClose()
+    } else {
+      setError(res.error ?? 'Could not disqualify.')
+    }
+  }
+
+  return (
+    <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Disqualify this company">
+        <header>
+          <h3>Disqualify this company</h3>
+          <div className="grow" />
+          <button className="btn btn-sm" type="button" onClick={onClose}>
+            Close
+          </button>
+        </header>
+        <form onSubmit={onSubmit}>
+          <div className="body">
+            <input type="hidden" name="companyId" value={company.id} />
+            <label className="f" htmlFor="disq-reason">
+              Reason
+            </label>
+            <select className="f" id="disq-reason" name="reason" defaultValue={DISQUALIFY_REASONS[0]}>
+              {DISQUALIFY_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+            <label className="f" htmlFor="disq-note">
+              Note for the record
+            </label>
+            <textarea
+              className="f"
+              id="disq-note"
+              name="note"
+              placeholder="One line explaining the call, so the next person does not repeat the research."
+            />
+            <label className="f" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="checkbox" name="suppress" value="true" disabled={!company.website} />
+              Also suppress this domain permanently — no further contact
+              {!company.website ? <span className="tiny muted"> (no website on record)</span> : null}
+            </label>
+            {error ? (
+              <p className="fm-err" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <footer>
+            <button className="btn" type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="btn btn-warn" type="submit" disabled={pending}>
+              {pending ? 'Disqualifying…' : 'Disqualify'}
+            </button>
+          </footer>
+        </form>
+      </div>
     </div>
   )
 }
@@ -324,8 +559,26 @@ function OverviewPane({
             )}
           </div>
         </div>
+        {company.research ? (
+          <div className="aiblock">
+            <div className="h">
+              <span className="prov prov-a"><i />AI analysis</span> Opportunity summary
+            </div>
+            <p>{company.research.opportunitySummary}</p>
+            <div className="foot">
+              <span>Ran {fmtDateTime(company.research.createdAt)}</span>
+            </div>
+          </div>
+        ) : null}
+        {company.research ? (
+          <RecommendationCard company={company} canWrite={canWrite} target={target} blocked={blocked} />
+        ) : null}
       </div>
       <div className="grid" style={{ gap: 14, alignContent: 'start' }}>
+        {company.fitScore != null ? <FitScoreCard company={company} /> : null}
+        {company.research && company.research.gaps.length > 0 ? (
+          <MissingInformationCard company={company} canWrite={canWrite} />
+        ) : null}
         <div className="card">
           <header>
             <h3>Pipeline stage</h3>
@@ -360,6 +613,210 @@ function OverviewPane({
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Recommendation, fit score, missing information (T5.4)               */
+/* ------------------------------------------------------------------ */
+
+const RECOMMENDATION_TAG_CLASS: Record<string, string> = {
+  proceed: 'tag tag-ok',
+  research_more: 'tag tag-due',
+  nurture: 'tag',
+  disqualify: 'tag tag-due',
+}
+
+function RecommendationCard({
+  company,
+  canWrite,
+  target,
+  blocked,
+}: {
+  company: CompanyDetail
+  canWrite: boolean
+  target: string | null
+  blocked: boolean
+}) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+  const [disqualifyOpen, setDisqualifyOpen] = useState(false)
+  const research = company.research!
+
+  async function runStage(formData: FormData) {
+    setPending(true)
+    const res = await changeStage(formData)
+    setPending(false)
+    if (res.ok) router.refresh()
+  }
+
+  async function runResearchTask(formData: FormData) {
+    setPending(true)
+    const res = await createTask(formData)
+    setPending(false)
+    if (res.ok) router.refresh()
+  }
+
+  return (
+    <div className="card">
+      <header>
+        <h3>Recommendation</h3>
+        <div className="grow" />
+        <span className="prov prov-a"><i />AI, not a decision</span>
+      </header>
+      <div className="body">
+        <p className="small" style={{ marginBottom: 4 }}>
+          <span className={RECOMMENDATION_TAG_CLASS[research.suitability.recommendation]}>
+            {RECOMMENDATION_LABELS[research.suitability.recommendation]}
+          </span>{' '}
+          — confidence: {research.suitability.confidence}
+        </p>
+        <p className="small" style={{ marginBottom: 12 }}>
+          {research.suitability.reasoning}
+        </p>
+        {canWrite ? (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {target ? (
+              <form action={runStage} style={{ display: 'inline-flex' }}>
+                <input type="hidden" name="companyId" value={company.id} />
+                <input type="hidden" name="stage" value={target} />
+                <button className="btn btn-go" type="submit" disabled={pending || blocked}>
+                  Accept and advance
+                </button>
+              </form>
+            ) : null}
+            <form action={runResearchTask} style={{ display: 'inline-flex' }}>
+              <input type="hidden" name="companyId" value={company.id} />
+              <input
+                type="hidden"
+                name="title"
+                value={`More research needed — ${company.name}`}
+              />
+              <input type="hidden" name="blocksStage" value="false" />
+              {company.ownerId ? <input type="hidden" name="assigneeId" value={company.ownerId} /> : null}
+              <button className="btn btn-sm" type="submit" disabled={pending}>
+                Needs more research
+              </button>
+            </form>
+            {company.stage !== 'nurture' ? (
+              <form action={runStage} style={{ display: 'inline-flex' }}>
+                <input type="hidden" name="companyId" value={company.id} />
+                <input type="hidden" name="stage" value="nurture" />
+                <button className="btn btn-sm" type="submit" disabled={pending}>
+                  Nurture instead
+                </button>
+              </form>
+            ) : null}
+            {company.stage !== 'disqualified' ? (
+              <button className="btn btn-sm btn-warn" onClick={() => setDisqualifyOpen(true)}>
+                Disqualify
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {disqualifyOpen ? <DisqualifyModal company={company} onClose={() => setDisqualifyOpen(false)} /> : null}
+    </div>
+  )
+}
+
+function FitScoreCard({ company }: { company: CompanyDetail }) {
+  return (
+    <div className="card">
+      <header>
+        <h3>Fit score</h3>
+        <div className="grow" />
+        <b className="score">{company.fitScore ?? '—'}</b>
+      </header>
+      <div className="body grid" style={{ gap: 10 }}>
+        {company.research && company.research.breakdown.length > 0 ? (
+          company.research.breakdown.map((b, i) => (
+            <div key={i}>
+              <div className="small" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>{b.criterion}</span>
+                <b className="num">
+                  {b.awarded}/{b.max}
+                </b>
+              </div>
+              <div className={`bar ${breakdownBarClass(b.awarded, b.max)}`}>
+                <span style={{ width: `${b.max > 0 ? Math.round((b.awarded / b.max) * 100) : 0}%` }} />
+              </div>
+              <p className="tiny muted" style={{ margin: '3px 0 0' }}>
+                {b.reason}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="small muted" style={{ margin: 0 }}>
+            Run AI research for a scored breakdown.
+          </p>
+        )}
+      </div>
+      <div className="body" style={{ borderTop: '1px solid var(--line-2)' }}>
+        <p className="tiny muted" style={{ margin: 0 }}>
+          Scores recalculate when new research lands, and every change is written to the audit
+          trail.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function MissingInformationCard({ company, canWrite }: { company: CompanyDetail; canWrite: boolean }) {
+  const router = useRouter()
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [pending, setPending] = useState<string | null>(null)
+
+  async function makeTask(gap: ResearchView['gaps'][number]) {
+    setPending(gap.field)
+    const fd = new FormData()
+    fd.set('companyId', company.id)
+    fd.set('title', `${gap.field} — ${gap.whyItMatters}`)
+    fd.set('blocksStage', String(gap.blocksQualification))
+    if (company.ownerId) fd.set('assigneeId', company.ownerId)
+    const res = await createTask(fd)
+    setPending(null)
+    if (res.ok) router.refresh()
+  }
+
+  const gaps = company.research!.gaps.filter((g) => !dismissed.has(g.field))
+
+  return (
+    <div className="card">
+      <header>
+        <h3>Missing information</h3>
+        <div className="grow" />
+        <span className="prov prov-a"><i />AI detected</span>
+      </header>
+      <div className="body grid" style={{ gap: 9 }}>
+        {gaps.length === 0 ? (
+          <p className="small muted" style={{ margin: 0 }}>
+            Nothing missing. Every qualification field has a source.
+          </p>
+        ) : (
+          gaps.map((g) => (
+            <div key={g.field} className="small">
+              <b>{g.field}</b>
+              <div className="muted">{g.whyItMatters}</div>
+              <div className="tiny muted">{g.howToFind}</div>
+              {canWrite ? (
+                <div style={{ marginTop: 5, display: 'flex', gap: 6 }}>
+                  <button className="btn btn-sm" onClick={() => makeTask(g)} disabled={pending === g.field}>
+                    {pending === g.field ? '…' : 'Make a task'}
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => setDismissed((s) => new Set(s).add(g.field))}
+                  >
+                    Not needed
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
       </div>
     </div>
   )
@@ -721,10 +1178,12 @@ function QualificationPane({
   company,
   canWrite,
   status,
+  canOverridePriority,
 }: {
   company: CompanyDetail
   canWrite: boolean
   status: { confirmed: number; total: number }
+  canOverridePriority: boolean
 }) {
   const criteria = company.facts.filter((f) => f.isQualificationCriterion)
 
@@ -787,17 +1246,122 @@ function QualificationPane({
           </p>
         </div>
       </div>
-      <div className="card">
-        <header>
-          <h3>Suitability</h3>
-          <div className="grow" />
-          <span className="prov prov-a"><i />AI</span>
-        </header>
-        <div className="body">
-          <p className="small muted" style={{ margin: 0 }}>
-            AI suitability analysis arrives with the research pack (Phase 5).
+      <div className="grid" style={{ gap: 14, alignContent: 'start' }}>
+        {company.research ? (
+          <div className="aiblock">
+            <div className="h">
+              <span className="prov prov-a"><i />AI analysis</span> Suitability
+            </div>
+            <p>{company.research.suitability.reasoning}</p>
+            <div className="foot">
+              <span>
+                Confidence: {company.research.suitability.confidence} — would change if:{' '}
+                {company.research.suitability.wouldChangeIf}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="card">
+            <header>
+              <h3>Suitability</h3>
+              <div className="grow" />
+              <span className="prov prov-a"><i />AI</span>
+            </header>
+            <div className="body">
+              <p className="small muted" style={{ margin: 0 }}>
+                Run AI research to get a suitability call for this company.
+              </p>
+            </div>
+          </div>
+        )}
+        {company.fitScore != null ? (
+          <PriorityCard company={company} canOverridePriority={canOverridePriority} />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function PriorityCard({
+  company,
+  canOverridePriority,
+}: {
+  company: CompanyDetail
+  canOverridePriority: boolean
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setPending(true)
+    setError(null)
+    const res = await overridePriority(new FormData(e.currentTarget))
+    setPending(false)
+    if (res.ok) {
+      router.refresh()
+      setOpen(false)
+    } else {
+      setError(res.error ?? 'Could not override priority.')
+    }
+  }
+
+  return (
+    <div className="card">
+      <header>
+        <h3>Priority</h3>
+      </header>
+      <div className="body">
+        {company.rank ? (
+          <p className="small">
+            Ranked <b>#{company.rank.rank}</b> of {company.rank.total} qualified compan
+            {company.rank.total === 1 ? 'y' : 'ies'}
+            {company.productName ? ` for ${company.productName}` : ''}.
+            {company.rank.isOverride ? ' (manually overridden)' : ''}
           </p>
-        </div>
+        ) : (
+          <p className="small muted">Not yet rankable — this company has no product assigned.</p>
+        )}
+        {company.priorityOverrideReason ? (
+          <p className="tiny muted">Override reason: {company.priorityOverrideReason}</p>
+        ) : null}
+        {company.research?.priorityReason ? (
+          <p className="tiny muted">AI note: {company.research.priorityReason}</p>
+        ) : null}
+        {canOverridePriority ? (
+          !open ? (
+            <button className="btn btn-sm" onClick={() => setOpen(true)}>
+              Override priority
+            </button>
+          ) : (
+            <form onSubmit={onSubmit} style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+              <input type="hidden" name="companyId" value={company.id} />
+              <label className="f" htmlFor="pri-rank">
+                New rank
+              </label>
+              <input className="f" id="pri-rank" name="rank" type="number" min={1} required />
+              <label className="f" htmlFor="pri-reason">
+                Reason (required — written to the audit trail)
+              </label>
+              <textarea className="f" id="pri-reason" name="reason" required />
+              {error ? (
+                <p className="fm-err" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-sm" type="submit" disabled={pending}>
+                  {pending ? 'Saving…' : 'Save override'}
+                </button>
+                <button className="btn btn-sm" type="button" onClick={() => setOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )
+        ) : null}
       </div>
     </div>
   )

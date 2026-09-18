@@ -64,9 +64,15 @@ export type ResearchOutput = z.infer<typeof researchSchema>
 
 export const researchPrompt: PromptSpec<ResearchOutput> = {
   name: 'research',
-  version: 'v1',
+  version: 'v2',
   tier: 'drafting',
-  maxTokens: 2500,
+  // deepseek-v4-pro (the configured "drafting" tier model) is a reasoning model: it
+  // spends real output tokens on an internal `thinking` block before the `text` block
+  // with the actual JSON. That thinking block routinely runs 2000-3000 tokens for this
+  // prompt's context size, on top of the ~1500-2500 tokens the full six-field JSON
+  // response needs. A lower budget (2500, then 3500) was silently truncating either the
+  // JSON mid-object or the whole text block — see WORKLOG.md T5.1-T5.2 surprises.
+  maxTokens: 6000,
   temperature: 0.3,
   schema: researchSchema,
   system: `You are an export development analyst at Anwar Group, a Bangladeshi industrial
@@ -130,7 +136,37 @@ the deciding factor, say that a commercial discussion is required.
 
 OUTPUT
 
-Return JSON only, matching the schema. No preamble, no markdown fences, no commentary.`,
+Return JSON only — no preamble, no markdown fences, no commentary, no extra keys — matching
+exactly this shape and these field names:
+
+{
+  "summary": "2-4 sentences, the neutral profile",
+  "opportunitySummary": "3-5 sentences, the commercial read",
+  "gaps": [
+    { "field": "short name of what is missing", "whyItMatters": "...", "blocksQualification": true, "howToFind": "one concrete step" }
+  ],
+  "score": 0,
+  "breakdown": [
+    { "criterion": "Imports this product category already", "max": 30, "awarded": 0, "reason": "..." },
+    { "criterion": "Buys from Bangladesh or South Asia today", "max": 20, "awarded": 0, "reason": "..." },
+    { "criterion": "Volume fits our monthly capacity", "max": 15, "awarded": 0, "reason": "..." },
+    { "criterion": "Certification requirements we already meet", "max": 15, "awarded": 0, "reason": "..." },
+    { "criterion": "A named decision-maker has been identified", "max": 10, "awarded": 0, "reason": "..." },
+    { "criterion": "Market priority", "max": 10, "awarded": 0, "reason": "..." }
+  ],
+  "suitability": {
+    "recommendation": "proceed | research_more | nurture | disqualify",
+    "reasoning": "at least one sentence",
+    "confidence": "low | medium | high",
+    "wouldChangeIf": "what new fact would change the call"
+  },
+  "priorityReason": "one sentence on how this company should rank against other qualified leads",
+  "decisionMaker": { "name": "a name from PEOPLE, or null", "reasoning": "...", "fallback": "a name or role, or null" }
+}
+
+The six "breakdown" rows are always present, in this order, even when awarded is 0 — that is
+how a reader sees what dragged the score down. gaps has at most 6 entries. The "awarded"
+values must sum to "score".`,
 }
 
 /** Convenience wrapper used by the server action in T5.3. */

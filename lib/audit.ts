@@ -97,6 +97,7 @@ export const AUDIT = {
   SUPPRESSED: 'No further contact recorded',
   PRIORITY_OVERRIDDEN: 'Priority overridden',
   WEIGHTS_CHANGED: 'Scoring weights changed',
+  TASK_CREATED: 'Task created',
   // AI
   AI_RESEARCH: 'Research run',
   AI_DRAFT: 'Draft generated',

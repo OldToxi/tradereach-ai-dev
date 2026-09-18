@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`████████████░░░░░░░░░░░░░░░░░░` **40%** — 31 of 78 tasks complete
+`██████████████░░░░░░░░░░░░░░░░` **47%** — 37 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -31,7 +31,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 2 · Auth & shell | 5 | 5 ✓ |
 | 3 · Catalog | 4 | 4 ✓ |
 | 4 · Companies & research | 7 | 7 ✓ |
-| 5 · AI research pack | 0 | 6 |
+| 5 · AI research pack | 6 | 6 ✓ |
 | 6 · Decision-makers | 0 | 4 |
 | 7 · Drafting & review | 0 | 7 |
 | 8 · Gmail connector | 0 | 5 |
@@ -224,21 +224,151 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T5.1–T5.6 — AI research pack: client/prompt fixes, research modal, recommendation/fit-score/gaps panels, prioritisation, disqualify+suppression
+- when: 2026-09-18 20:20 UTC
+- agent: claude-code
+- files: supabase/migrations/0007_research_pack.sql, supabase/migrations/0008_research_run_write.sql, lib/database.types.ts (regen), lib/ai/prompts/research.ts, lib/research.ts, lib/research-actions.ts, lib/audit.ts, lib/session.ts, components/CompanyDetailScreen.tsx, app/(app)/companies/[id]/page.tsx, tests/research.test.ts
+- done: |
+    T5.1/T5.2 were pre-written per PLAN's table but broken in practice — see surprises.
+    Bumped `research.ts` to prompt version v2 with an explicit field-by-field JSON shape
+    in the system prompt and `maxTokens: 6000`.
+
+    New migrations: `research_run` (one row per research call: summary,
+    opportunity_summary, gaps, score, breakdown, suitability, priority_reason,
+    decision_maker, linked to ai_run) with a read policy scoped by `company_visible`
+    and a write policy for `can_write()` users (not service-role-only, unlike ai_run —
+    see the migration's own comment for why). `company` gained `priority_override` +
+    `priority_override_reason` (T5.5).
+
+    `lib/research.ts` (pure, tested): `breakdownBarClass`, a criterion-text → canonical
+    qualification-fact-key mapper (`criterionKeyFor`/`factsFromBreakdown`), the
+    prioritisation ranking (`isRankable`/`computeRank`/`displayRank`), and the
+    `RESEARCH_DEPTHS`/`DISQUALIFY_REASONS` constants (kept out of the server-action file
+    on purpose — see surprises).
+
+    `lib/research-actions.ts`: `runResearch` (T5.1–T5.4) builds context via
+    `buildCompanyContext(..., {includeUnverified:true})` + `buildProductContext`, calls
+    the research prompt, writes `research_run`, updates `company.fit_score`, and upserts
+    `ai`-provenance qualification-criterion facts from the breakdown — skipping any
+    criterion already `verified`/`human_approved` so a research re-run can never
+    overwrite a person's confirmed answer. `createTask` (T5.4 "Make a task"),
+    `overridePriority` (T5.5, manager-only, mandatory reason → `AUDIT.PRIORITY_OVERRIDDEN`),
+    `disqualifyCompany` (T5.6: stage → disqualified + reason, optional domain →
+    `suppression` insert, both audited).
+
+    `CompanyDetailScreen.tsx`: header gained Re-run/Run AI research, Nurture,
+    Disqualify (previously absent — Phase 4 had no header actions at all). Overview
+    gained the AI opportunity-summary block, Recommendation card (Accept and
+    advance/Needs more research/Nurture instead/Disqualify, all wired to real actions,
+    gated by the existing T4.7 stage-gate logic), Fit score card with per-criterion
+    bars, Missing information card with Make a task/Not needed. Qualification tab
+    gained the real Suitability aiblock and a Priority card (rank display +
+    manager-only override form).
+- verified: |
+    `npm run verify` green (109 tests, `tests/research.test.ts` = 13). `npm run build`
+    clean, all 17 routes. Real e2e against the live Supabase project and the configured
+    DeepSeek endpoint (not mocked): ran actual AI research on Kyoto Green Materials
+    (manager session) — got a schema-valid response, `research_run` + `fit_score` +
+    qualification-criterion `fact` upserts all landed, `ai_cannot_be_confirmed` still
+    blocks an AI fact with `confirmed_by` set, and the pre-existing `verified`
+    `certification_match` fact was correctly left untouched. Separately verified
+    `createTask`/`overridePriority`/`disqualifyCompany`/suppression writes against a
+    disposable company (hard-deleted via admin afterward — there is no user-facing
+    company delete). Browser e2e (Chrome, real login) as manager: research panels
+    render with live data, "Accept and advance" is `disabled` while criteria are
+    unverified (confirmed via DOM, not just visual), "Make a task" created a real row,
+    priority override round-tripped ("Ranked #2 of 5 … (manually overridden)" with the
+    reason shown). As executive (Nusrat): identical panels, but no "Override priority"
+    control, and her ranking denominator was "of 2" (her market-scoped view), not
+    rifat's "of 5" — confirms the ranking query deliberately runs through the acting
+    user's own RLS-scoped client rather than admin, so it can never leak a
+    cross-market company count to an executive.
+- notes: |
+    Ranking is computed live (fit score desc, id tie-break) among same-`product_id`
+    companies visible to the acting user — not stored — so it always reflects the
+    latest scores and each user's own market scope. `priority_override` is a display
+    override only, shown alongside the computed rank's total.
+
+    Qualification-criterion auto-population only fires for the 5 of 6 canonical
+    criteria the research prompt's SCORING section actually scores (imports_category,
+    buys_south_asia, volume_fit, certification_match, decision_maker_found) and only
+    when `awarded > 0` (a zero means "no evidence," which is a gap, not a fact).
+    `credit_signal` (payment history) is not one of the prompt's five scored criteria
+    and Market priority describes the market, not the company — both stay unpopulated
+    until a later phase or a person researches them by hand.
+
+    Deliberately did not touch `scripts/seed.ts` — Phase 5 is additive UI/AI plumbing
+    on top of the existing seed, not new demo data. Running real research on a seeded
+    company overwrites its static seed `fit_score` with the AI's actual (evidence-based)
+    assessment — Kyoto went 78 → 20, which is the system working as designed (the seed
+    value was never AI-derived), but worth knowing before a demo: the first research
+    run on a thin-evidence company can look like a regression when it is not.
+- surprises: |
+    **T5.1/T5.2's "pre-written, already reviewed" files did not actually work.**
+    `lib/ai/prompts/research.ts`'s system prompt described the scoring rules in prose
+    but never told the model the JSON field names — DeepSeek (the configured
+    "drafting" model, `deepseek-v4-pro`) returned a differently-shaped, differently-named
+    JSON object every time, which `schema.parse` correctly rejected. Fixed by putting
+    the exact field-by-field shape in the OUTPUT section.
+
+    **`deepseek-v4-pro` is a reasoning model.** It emits a `thinking` content block
+    (`res.content` type `"thinking"`, already correctly filtered out by
+    `lib/ai/client.ts`'s `.filter(b => b.type === 'text')`) before the `text` block, and
+    that thinking block competes with the JSON for the same `max_tokens` budget. At the
+    pre-written `maxTokens: 2500` the whole budget was sometimes spent on thinking alone
+    (`stop_reason: 'max_tokens'`, zero-length text block) or truncated the JSON mid-object.
+    Raised to `6000` and confirmed `stop_reason: 'end_turn'` with a complete response on
+    the real (longer) company context. This will very likely bite `draft.ts` and
+    `followup.ts` too when T7/T7.7 build against them — same tier, same model, same
+    problem shape. Worth checking their `maxTokens` before assuming they work.
+
+    **A `'use server'` file may only export async functions.** The first draft of
+    `lib/research-actions.ts` also exported `RESEARCH_DEPTHS`/`DISQUALIFY_REASONS`
+    (plain constants, for the modal's `<select>` options) — this is a Next.js build
+    error, not a lint warning, and it only surfaced at runtime (`npm run build` did not
+    catch it; a real browser click did, via `read_console_messages`). Fixed by moving
+    every non-function export into `lib/research.ts`. Worth remembering for T7/T8/T9's
+    server-action files: constants and types go in a plain lib module, never in the
+    `'use server'` file itself, even if it feels natural to co-locate them with the
+    action that uses them.
+- rank_helper_ownership: `lib/research.ts#computeRank` takes an already-fetched,
+  already-RLS-scoped company list — deliberately dumb/pure so it stays unit-testable;
+  the RLS scoping happens once, in the page/action that calls it.
+
+---
+
 ## Handoff
 
-**Status:** Phase 4 complete (7/7). `npm run verify` green (96 tests). `/companies` list + full company detail (six tabs, promote-to-verified, sources, analyst notes, qualification checklist, stage gate) are live and RLS-scoped.
+**Status:** Phase 5 complete (6/6). `npm run verify` green (109 tests). AI research pack
+is live end-to-end against the real Supabase project and the configured DeepSeek
+endpoint: Run/Re-run research, opportunity summary, recommendation actions, fit-score
+breakdown, missing-information → tasks, prioritisation + manager override, and
+disqualify + domain suppression are all wired to real data and audited.
 
-- Last completed task: T4.7 (all of T4.2–T4.7 shipped together in one pass).
-- Current task: none open — next is T5.1 (Phase 5, AI research pack).
+- Last completed task: T5.6 (all of T5.1–T5.6 shipped together in one pass, plus fixing
+  the two pre-written files T5.1/T5.2 depended on — see surprises above).
+- Current task: none open — next is T6.1 (Phase 6, Decision-makers).
 - Blocked on: nothing technical.
-- Discovered vs PLAN.md (see T3.1–T4.7 log entries for detail):
-  - PLAN says T4.1 has "five filters"; the mock has four. Built the mock's four.
-  - `profiles` RLS: executives read only their own profile → colleague owner names are null for them (falls back to "—").
-  - `enforce_stage_gate` only counts *unverified* criteria, so a company with zero criterion facts can advance past Qualification. Matches the letter of T4.7; note for T7/T10 if stricter gating is wanted.
-  - `source.supports` is a new column (0006) added to capture "what the source supports" from the mock's Add source modal; `source_type` stays null for manual adds.
-  - Seed now sets `object_id` on company-scoped audit rows so the detail History tab has demo rows.
-- Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is running (clobbers `.next`). `npm run seed` does not load `.env.local`; use `npx tsx --env-file=.env.local scripts/seed.ts --reset`.
-- Commit status: Phase 2–3 committed (`6b9694e`). T4.1–T4.7 changes are uncommitted — awaiting user go-ahead.
+- Discovered vs PLAN.md (see the T5.1–T5.6 log entry above for full detail):
+  - `lib/ai/prompts/research.ts` needed a real schema in its OUTPUT section and a much
+    higher `maxTokens` (6000, not 2500) to work against the configured reasoning model.
+    Bumped to prompt version v2.
+  - `'use server'` files may only export async functions — plain constants belong in a
+    sibling lib module, not co-located in the action file. Likely to recur in T7–T9.
+  - Ranking and its "N of M" denominator must go through the acting user's own
+    RLS-scoped client, not admin — otherwise an executive's priority card would leak a
+    cross-market company count.
+  - Running research on a seeded company overwrites its placeholder seed `fit_score`
+    with a real (often lower) evidence-based score. Expected, not a bug — flagging so a
+    demo run isn't mistaken for one.
+- Operational notes (unchanged, plus one new): do NOT run `npm run build` while
+  `npm run dev` is running (clobbers `.next`). `npm run seed` does not load `.env.local`;
+  use `npx tsx --env-file=.env.local scripts/seed.ts --reset`. New: `npm run types`
+  (via the npm script wrapper) writes `lib/database.types.ts` as UTF-16 on this Windows
+  box — regenerate with `npx supabase gen types typescript --linked > lib/database.types.ts`
+  (direct bash redirect) instead, and confirm with `file lib/database.types.ts`.
+- Commit status: Phase 2–3 committed (`6b9694e`), Phase 4 committed. T5.1–T5.6 changes
+  are uncommitted — awaiting user go-ahead.
 - Next command for the next agent:
 
 ```
@@ -246,4 +376,4 @@ npm run verify
 npm run dev
 ```
 
-Then start T5.1 (AI research pack — one call, six outputs).
+Then start T6.1 (`/contacts` list — verification state, contactable state, lawful basis).

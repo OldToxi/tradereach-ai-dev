@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
-import { currentUser } from '@/lib/session'
+import { currentUser, canOverridePriority } from '@/lib/session'
+import { computeRank, displayRank } from '@/lib/research'
 import {
   CompanyDetailScreen,
   type CompanyDetail,
@@ -8,6 +9,7 @@ import {
   type SourceView,
   type ContactView,
   type AuditView,
+  type ResearchView,
 } from '@/components/CompanyDetailScreen'
 
 export default async function CompanyDetailPage({ params }: { params: { id: string } }) {
@@ -20,11 +22,12 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
     { data: sources },
     { data: contacts },
     { data: audit },
+    { data: latestRun },
   ] = await Promise.all([
     supabase
       .from('company')
       .select(
-        'id, name, website, market, company_type, stage, fit_score, disqualified_reason, profiles!company_owner_id_fkey(full_name), product(name)',
+        'id, name, website, market, company_type, stage, fit_score, disqualified_reason, owner_id, product_id, priority_override, priority_override_reason, profiles!company_owner_id_fkey(full_name), product(name)',
       )
       .eq('id', params.id)
       .maybeSingle(),
@@ -52,9 +55,44 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
       .eq('object_id', params.id)
       .order('created_at', { ascending: false })
       .limit(40),
+    supabase
+      .from('research_run')
+      .select('summary, opportunity_summary, gaps, score, breakdown, suitability, priority_reason, created_at')
+      .eq('company_id', params.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (!company) notFound()
+
+  // Ranking (T5.5): among companies promoting the same product, visible to this
+  // user (RLS already scopes the query below to the user's markets).
+  let rank: { rank: number; total: number; isOverride: boolean } | null = null
+  if (company.product_id) {
+    const { data: peers } = await supabase
+      .from('company')
+      .select('id, fit_score, stage')
+      .eq('product_id', company.product_id)
+    const computed = computeRank(
+      (peers ?? []).map((p) => ({ id: p.id, fitScore: p.fit_score, stage: p.stage })),
+      company.id,
+    )
+    rank = displayRank(computed, company.priority_override)
+  }
+
+  const research: ResearchView | null = latestRun
+    ? {
+        summary: latestRun.summary,
+        opportunitySummary: latestRun.opportunity_summary,
+        gaps: (latestRun.gaps ?? []) as ResearchView['gaps'],
+        score: latestRun.score,
+        breakdown: (latestRun.breakdown ?? []) as ResearchView['breakdown'],
+        suitability: latestRun.suitability as ResearchView['suitability'],
+        priorityReason: latestRun.priority_reason,
+        createdAt: latestRun.created_at,
+      }
+    : null
 
   const detail: CompanyDetail = {
     id: company.id,
@@ -65,8 +103,12 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
     stage: company.stage,
     fitScore: company.fit_score,
     disqualifiedReason: company.disqualified_reason,
+    ownerId: company.owner_id,
     ownerName: company.profiles?.full_name ?? null,
     productName: company.product?.name ?? null,
+    priorityOverrideReason: company.priority_override_reason,
+    rank,
+    research,
     facts: (facts ?? []).map(
       (f): FactView => ({
         id: f.id,
@@ -117,6 +159,7 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
       company={detail}
       role={user.role}
       canWrite={user.role !== 'auditor'}
+      canOverridePriority={canOverridePriority(user)}
     />
   )
 }

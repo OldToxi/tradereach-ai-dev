@@ -95,18 +95,18 @@ likely thing to go wrong.
 
 ## Phase 5 — AI research pack (one call, six outputs)
 
-- [ ] T5.1 `lib/ai/client.ts` — Anthropic wrapper: model from env, zod-validated JSON,
+- [x] T5.1 `lib/ai/client.ts` — Anthropic wrapper: model from env, zod-validated JSON,
       retry once on parse failure, always writes an `ai_run` row with tokens and cost
-- [ ] T5.2 `lib/ai/prompts/research.ts` v1 — returns summary, gaps, score, breakdown,
+- [x] T5.2 `lib/ai/prompts/research.ts` v2 — returns summary, gaps, score, breakdown,
       suitability, priority reason, decision-maker pick. Context is verified facts only
-- [ ] T5.3 `Run AI research` modal + server action. Depth options. Writes results as `ai`
+- [x] T5.3 `Run AI research` modal + server action. Depth options. Writes results as `ai`
       provenance, never `verified`
-- [ ] T5.4 Render into the mock's panels: opportunity summary, recommendation with
+- [x] T5.4 Render into the mock's panels: opportunity summary, recommendation with
       accept/nurture/disqualify, fit score breakdown bars, missing-information cards with
       `Make a task`
-- [ ] T5.5 Prioritisation: rank qualified companies, show `#3 of 41`, allow manager override
+- [x] T5.5 Prioritisation: rank qualified companies, show `#3 of 41`, allow manager override
       with a mandatory reason written to audit
-- [ ] T5.6 Disqualify modal with reason + optional permanent domain suppression
+- [x] T5.6 Disqualify modal with reason + optional permanent domain suppression
 
 ---
 

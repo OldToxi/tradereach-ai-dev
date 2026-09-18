@@ -155,6 +155,9 @@ export const canWrite = (u: SessionUser) => u.role !== 'auditor'
 
 export const canManageUsers = (u: SessionUser) => u.role === 'manager'
 
+/** Prioritisation ranking may be overridden only by a manager (T5.5). */
+export const canOverridePriority = (u: SessionUser) => u.role === 'manager'
+
 /** Managers, commercial and auditors see every market. Executives see theirs. */
 export const seesAllMarkets = (u: SessionUser) => u.role !== 'executive'
 

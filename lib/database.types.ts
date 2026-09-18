@@ -141,6 +141,8 @@ export type Database = {
           name: string
           next_touch_at: string | null
           owner_id: string | null
+          priority_override: number | null
+          priority_override_reason: string | null
           product_id: string | null
           stage: Database["public"]["Enums"]["stage"]
           website: string | null
@@ -155,6 +157,8 @@ export type Database = {
           name: string
           next_touch_at?: string | null
           owner_id?: string | null
+          priority_override?: number | null
+          priority_override_reason?: string | null
           product_id?: string | null
           stage?: Database["public"]["Enums"]["stage"]
           website?: string | null
@@ -169,6 +173,8 @@ export type Database = {
           name?: string
           next_touch_at?: string | null
           owner_id?: string | null
+          priority_override?: number | null
+          priority_override_reason?: string | null
           product_id?: string | null
           stage?: Database["public"]["Enums"]["stage"]
           website?: string | null
@@ -712,6 +718,66 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_run: {
+        Row: {
+          ai_run_id: string
+          breakdown: Json
+          company_id: string
+          created_at: string
+          decision_maker: Json | null
+          gaps: Json
+          id: string
+          opportunity_summary: string
+          priority_reason: string | null
+          score: number
+          suitability: Json
+          summary: string
+        }
+        Insert: {
+          ai_run_id: string
+          breakdown?: Json
+          company_id: string
+          created_at?: string
+          decision_maker?: Json | null
+          gaps?: Json
+          id?: string
+          opportunity_summary: string
+          priority_reason?: string | null
+          score: number
+          suitability: Json
+          summary: string
+        }
+        Update: {
+          ai_run_id?: string
+          breakdown?: Json
+          company_id?: string
+          created_at?: string
+          decision_maker?: Json | null
+          gaps?: Json
+          id?: string
+          opportunity_summary?: string
+          priority_reason?: string | null
+          score?: number
+          suitability?: Json
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_run_ai_run_id_fkey"
+            columns: ["ai_run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_run"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_run_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]
