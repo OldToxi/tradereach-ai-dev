@@ -104,7 +104,7 @@ one of two lists:
   them, samples, exclusivity, distributor appointment, warranty, compliance certification
   for their market, discounts, contract length
 
-Quote their own words in `theirWords` so a person can see what was matched.
+Quote their own words in 'theirWords' so a person can see what was matched.
 
 When reserved is non-empty, the category is pricing_request and nextAction.action is
 escalate_commercial with owner "commercial" — even if the answerable list is longer. The

@@ -13,13 +13,19 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { z } from 'zod'
 import { admin } from '../supabase/admin'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+// ANTHROPIC_API_KEY doubles as the AI provider key. DeepSeek exposes an
+// Anthropic-compatible endpoint, so the same SDK works for both: leave
+// AI_BASE_URL unset for Anthropic, or set it to DeepSeek's /anthropic base.
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  baseURL: process.env.AI_BASE_URL,
+})
 
 export type ModelTier = 'drafting' | 'classify'
 
 const MODEL: Record<ModelTier, string> = {
-  drafting: process.env.AI_MODEL_DRAFTING ?? 'claude-sonnet-4-6',
-  classify: process.env.AI_MODEL_CLASSIFY ?? 'claude-haiku-4-5-20251001',
+  drafting: process.env.AI_MODEL_DRAFTING ?? 'deepseek-v4-pro',
+  classify: process.env.AI_MODEL_CLASSIFY ?? 'deepseek-flash',
 }
 
 // Published per-million-token rates. Only used for the spend display and cap —
@@ -27,6 +33,9 @@ const MODEL: Record<ModelTier, string> = {
 const RATES: Record<string, { in: number; out: number }> = {
   'claude-sonnet-4-6': { in: 3, out: 15 },
   'claude-haiku-4-5-20251001': { in: 1, out: 5 },
+  // DeepSeek estimates — confirm against the DeepSeek pricing page.
+  'deepseek-v4-pro': { in: 1.5, out: 3 },
+  'deepseek-flash': { in: 0.3, out: 1.1 },
 }
 
 export class AIError extends Error {

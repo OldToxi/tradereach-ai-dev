@@ -12,29 +12,72 @@
  *      not stored on the product at all, and this is the second line of defence.
  */
 import { admin } from '../supabase/admin'
+import { RESERVED_MATTERS } from '../guardrails'
 
-/** Field names that must never appear in prompt context, wherever they come from. */
-const RESERVED_KEYS = [
+/**
+ * Substring fragments that mark a key as reserved. Deliberately over-catching
+ * (mirrors the guardrail patterns): dropping a benign fact costs a little context,
+ * leaking a price costs a commitment Anwar Group did not make.
+ *
+ * `lead_time`, `capacity`, `certifications` and `capability` are NOT here — they
+ * are the allowed product facts, and stripping them would neuter the drafts.
+ */
+const RESERVED_KEY_FRAGMENTS = [
   'price',
+  'pricing',
+  'quote',
+  'quotation',
   'unit_price',
-  'payment_terms',
+  'cost',
+  'rate',
+  'payment',
+  'letter_of_credit',
+  'advance_payment',
   'credit',
   'moq',
   'minimum_order',
+  'min_order',
+  'minimum_quantity',
   'freight',
+  'delivery',
   'delivery_date',
-  'sample_policy',
-  'exclusivity',
-  'distributor_terms',
+  'ship_date',
+  'sample',
+  'sampling',
+  'swatch',
+  'trial_order',
+  'exclusiv',
+  'sole_agent',
+  'sole_distributor',
+  'distributor',
+  'appoint',
+  'agency_agreement',
   'warranty',
+  'guarantee',
+  'compliance',
+  'certified_to',
+  'conforms',
+  'reach',
+  'eudr',
+  'ce_mark',
   'discount',
-  'contract_length',
+  'rebate',
+  'introductory_price',
+  'special_rate',
+  'contract',
+  'annual_contract',
 ]
+
+/** Is this fact key (or column name) a reserved commercial matter? */
+export function isReservedKey(key: string): boolean {
+  const k = key.toLowerCase()
+  return RESERVED_KEY_FRAGMENTS.some((r) => k.includes(r))
+}
 
 export function stripReserved<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(obj)) {
-    if (RESERVED_KEYS.some((r) => k.toLowerCase().includes(r))) continue
+    if (isReservedKey(k)) continue
     out[k] = v
   }
   return out as Partial<T>
@@ -64,7 +107,7 @@ export async function buildCompanyContext(
 
   // Research may look at unverified facts (that is how it spots gaps).
   // Drafting may not — default is verified only.
-  const allowed = opts.includeUnverified
+  const allowed: Array<'verified' | 'human_approved' | 'unverified'> = opts.includeUnverified
     ? ['verified', 'human_approved', 'unverified']
     : ['verified', 'human_approved']
 
@@ -84,9 +127,7 @@ export async function buildCompanyContext(
     .select('title, source_type, url')
     .eq('company_id', companyId)
 
-  const kept = (facts ?? []).filter(
-    (f) => !RESERVED_KEYS.some((r) => f.key.toLowerCase().includes(r)),
-  )
+  const kept = (facts ?? []).filter((f) => !isReservedKey(f.key))
 
   return {
     name: company.name,
@@ -95,7 +136,6 @@ export async function buildCompanyContext(
     facts: kept.map((f) => ({
       key: f.key,
       value: f.value,
-      // @ts-expect-error supabase join shape
       source: f.source?.title ?? null,
     })),
     contacts: (contacts ?? []).map((c) => ({
@@ -121,21 +161,46 @@ export interface ProductContext {
   capabilitySheet: string | null
 }
 
+/**
+ * The product allowlist — the only columns a prompt may read about our own
+ * product. Kept as a named list so a test can assert it stays free of reserved
+ * columns. Anything commercial (price, MOQ, payment, samples, …) is not a
+ * product column at all.
+ */
+export const PRODUCT_CONTEXT_COLUMNS = [
+  'name',
+  'hs_code',
+  'certifications',
+  'monthly_capacity',
+  'lead_time',
+  'capability_sheet',
+] as const
+
 export async function buildProductContext(productId: string): Promise<ProductContext> {
   const { data, error } = await admin
     .from('product')
-    .select('name, hs_code, certifications, monthly_capacity, lead_time, capability_sheet')
+    .select(PRODUCT_CONTEXT_COLUMNS.join(','))
     .eq('id', productId)
     .single()
   if (error || !data) throw new Error(`Product ${productId} not found`)
 
+  // `.select()` was passed a computed string, so the row type is generic here.
+  const row = data as unknown as {
+    name: string
+    hs_code: string | null
+    certifications: string[] | null
+    monthly_capacity: string | null
+    lead_time: string | null
+    capability_sheet: string | null
+  }
+
   return {
-    name: data.name,
-    hsCode: data.hs_code,
-    certifications: data.certifications ?? [],
-    monthlyCapacity: data.monthly_capacity,
-    leadTime: data.lead_time,
-    capabilitySheet: data.capability_sheet,
+    name: row.name,
+    hsCode: row.hs_code,
+    certifications: row.certifications ?? [],
+    monthlyCapacity: row.monthly_capacity,
+    leadTime: row.lead_time,
+    capabilitySheet: row.capability_sheet,
   }
 }
 

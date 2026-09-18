@@ -70,6 +70,9 @@ export const RESERVED_LABELS: Record<ReservedMatter, string> = {
   contract_length: 'Contract length',
 }
 
+/** Canonical list of reserved matters — the single source of truth for the code. */
+export const RESERVED_MATTERS = Object.keys(RESERVED_LABELS) as ReservedMatter[]
+
 /**
  * Deterministic patterns. Tuned to over-catch: a false hold costs one click from
  * a Commercial Authority, a false clear costs a commitment Anwar Group did not make.

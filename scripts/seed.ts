@@ -12,14 +12,19 @@
  * Data is lifted from design/mock-ui.html, so the built app and the mock agree.
  */
 import { admin } from '../lib/supabase/admin'
+import type { Database } from '../lib/database.types'
 
-const TEAM = [
+type UserRole = Database['public']['Enums']['user_role']
+type Stage = Database['public']['Enums']['stage']
+type Provenance = Database['public']['Enums']['provenance']
+
+const TEAM: Array<{ email: string; name: string; role: UserRole; markets: string[] }> = [
   { email: 'rifat.hasan@anwargroup.test', name: 'Rifat Hasan', role: 'manager', markets: ['Türkiye', 'Germany', 'United Kingdom'] },
   { email: 'nusrat.jahan@anwargroup.test', name: 'Nusrat Jahan', role: 'executive', markets: ['Japan', 'UAE'] },
   { email: 'tanvir.alam@anwargroup.test', name: 'Tanvir Alam', role: 'executive', markets: ['Brazil', 'Egypt'] },
   { email: 'mahbub.rahman@anwargroup.test', name: 'Mahbub Rahman', role: 'commercial', markets: [] },
   { email: 'audit@anwargroup.test', name: 'Audit (internal)', role: 'auditor', markets: [] },
-] as const
+]
 
 const PASSWORD = process.env.SEED_PASSWORD ?? 'demo-password-2026'
 
@@ -41,17 +46,66 @@ const PRODUCTS = [
 ]
 
 const MARKETS = [
-  { country: 'Türkiye', product_focus: 'Jute yarn', import_demand: '48,200 MT/yr', tariff_note: '0% GSP', priority: 'high', weekly_outreach_cap: 12, send_window: '08:00–17:00 Europe/Istanbul, Mon–Fri', status: 'active' },
-  { country: 'Germany', product_focus: 'Jute yarn, bags', import_demand: '31,600 MT/yr', tariff_note: '0% EBA', priority: 'high', weekly_outreach_cap: 12, send_window: '08:00–17:00 Europe/Berlin, Mon–Fri', status: 'active' },
-  { country: 'Japan', product_focus: 'Jute yarn, tableware', import_demand: '12,900 MT/yr', tariff_note: '0% GSP', priority: 'high', weekly_outreach_cap: 10, send_window: '09:00–17:00 Asia/Tokyo, Mon–Fri', status: 'active' },
-  { country: 'United Kingdom', product_focus: 'Bags, garments', import_demand: '22,400 MT/yr', tariff_note: '0% DCTS', priority: 'medium', weekly_outreach_cap: 10, send_window: '08:00–17:00 Europe/London, Mon–Fri', status: 'active' },
-  { country: 'UAE', product_focus: 'Bags, tableware', import_demand: '9,800 MT/yr', tariff_note: '5% GCC', priority: 'medium', weekly_outreach_cap: 8, send_window: '08:00–16:00 Asia/Dubai, Sun–Thu', status: 'under_review' },
-  { country: 'Brazil', product_focus: 'Garments, tableware', import_demand: '6,200 MT/yr', tariff_note: '18% MFN', priority: 'watch', weekly_outreach_cap: 5, send_window: '09:00–17:00 America/Sao_Paulo, Mon–Fri', status: 'watchlist' },
-  { country: 'Egypt', product_focus: 'Jute yarn', import_demand: '4,100 MT/yr', tariff_note: 'Import licence required', priority: 'watch', weekly_outreach_cap: 5, send_window: '09:00–16:00 Africa/Cairo, Sun–Thu', status: 'paused' },
+  { country: 'Türkiye', product_focus: 'Jute yarn', import_demand: '48,200 MT/yr', tariff_note: '0% GSP', priority: 'high', weekly_outreach_cap: 12, send_window: '08:00–17:00 Europe/Istanbul, Mon–Fri', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'KVKK (GDPR-aligned) applies. Lawful-interest basis recorded; unsubscribe honoured permanently.', status: 'active' },
+  { country: 'Germany', product_focus: 'Jute yarn, bags', import_demand: '31,600 MT/yr', tariff_note: '0% EBA', priority: 'high', weekly_outreach_cap: 12, send_window: '08:00–17:00 Europe/Berlin, Mon–Fri', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'GDPR applies. Contact must have a lawful-interest basis recorded; unsubscribe honoured permanently.', status: 'active' },
+  { country: 'Japan', product_focus: 'Jute yarn, tableware', import_demand: '12,900 MT/yr', tariff_note: '0% GSP', priority: 'high', weekly_outreach_cap: 10, send_window: '09:00–17:00 Asia/Tokyo, Mon–Fri', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'APPI applies. Opt-out recorded; unsubscribe honoured permanently.', status: 'active' },
+  { country: 'United Kingdom', product_focus: 'Bags, garments', import_demand: '22,400 MT/yr', tariff_note: '0% DCTS', priority: 'medium', weekly_outreach_cap: 10, send_window: '08:00–17:00 Europe/London, Mon–Fri', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'UK GDPR applies. Lawful-interest basis recorded; unsubscribe honoured permanently.', status: 'active' },
+  { country: 'UAE', product_focus: 'Bags, tableware', import_demand: '9,800 MT/yr', tariff_note: '5% GCC', priority: 'medium', weekly_outreach_cap: 8, send_window: '08:00–16:00 Asia/Dubai, Sun–Thu', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'UAE PDPL applies. Consent or lawful-interest basis recorded; unsubscribe honoured permanently.', status: 'under_review' },
+  { country: 'Brazil', product_focus: 'Garments, tableware', import_demand: '6,200 MT/yr', tariff_note: '18% MFN', priority: 'watch', weekly_outreach_cap: 5, send_window: '09:00–17:00 America/Sao_Paulo, Mon–Fri', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'LGPD applies. Lawful-interest basis recorded; unsubscribe honoured permanently.', status: 'watchlist' },
+  { country: 'Egypt', product_focus: 'Jute yarn', import_demand: '4,100 MT/yr', tariff_note: 'Import licence required', priority: 'watch', weekly_outreach_cap: 5, send_window: '09:00–16:00 Africa/Cairo, Sun–Thu', required_before_sending: 'Named decision-maker · one verified trade source · product fit stated in the first two lines', legal_note: 'Egyptian PDPL applies. Lawful-interest basis recorded; unsubscribe honoured permanently.', status: 'paused' },
 ]
 
+/**
+ * Market notes carry provenance like company facts (rule 1). The optional fourth
+ * element is the badge label — "UN Comtrade 2025", "AI inferred from 9 replies" —
+ * matching the mock's market-note card. Notes without a label render no badge.
+ */
+const MARKET_NOTES: Record<string, Array<[string, string, Provenance, string?]>> = {
+  'Türkiye': [
+    ['why_this_market', 'Second-largest buyer of Bangladeshi jute yarn; local spinners short on raw supply.', 'human_approved'],
+    ['import_volume', '48,200 MT / yr', 'verified', 'UN Comtrade 2025'],
+    ['duty', '0% under GSP', 'unverified', 'Needs re-check for 2026'],
+    ['buying_season', 'Orders cluster Jan–Mar', 'ai', 'AI inferred from 9 replies'],
+    ['language', 'English accepted; Turkish opener lifts reply rate', 'human_approved'],
+    ['local_rules', 'Include company registration number in first contact', 'human_approved'],
+  ],
+  'Germany': [
+    ['why_this_market', 'Largest EU jute importer; steady demand for agri-packaging and food-grade hessian.', 'human_approved'],
+    ['import_volume', '31,600 MT / yr', 'verified', 'UN Comtrade 2025'],
+    ['duty', '0% under EBA (LDC)', 'verified', 'EU GSP database'],
+    ['buying_season', 'Steady year-round; pre-harvest spike Aug–Oct', 'ai', 'AI inferred from 11 replies'],
+    ['local_rules', 'EUDR due-diligence statement expected on first contact', 'human_approved'],
+  ],
+  'Japan': [
+    ['why_this_market', 'High-value market that pays for count consistency and certified inputs.', 'human_approved'],
+    ['import_volume', '12,900 MT / yr', 'verified', 'UN Comtrade 2025'],
+    ['duty', '0% GSP', 'verified', 'Japan customs schedule'],
+    ['local_rules', 'Japanese-language opener strongly preferred', 'human_approved'],
+  ],
+  'United Kingdom': [
+    ['why_this_market', 'Duty-free DCTS access; growing demand for reusable retail bags.', 'human_approved'],
+    ['import_volume', '22,400 MT / yr', 'verified', 'HMRC trade stats 2025'],
+    ['duty', '0% DCTS', 'verified', 'UK Global Tariff'],
+  ],
+  'UAE': [
+    ['why_this_market', 'MENA re-export hub; tableware and bags move through Dubai.', 'human_approved'],
+    ['import_volume', '9,800 MT / yr', 'unverified', 'Estimated from re-export flows'],
+    ['duty', '5% GCC', 'verified', 'GCC common tariff'],
+  ],
+  'Brazil': [
+    ['why_this_market', 'Large domestic market; tariff-heavy, suits only higher-value lines.', 'human_approved'],
+    ['import_volume', '6,200 MT / yr', 'unverified', 'Estimated'],
+    ['duty', '18% MFN', 'verified', 'Brazil import tariff (TEC)'],
+  ],
+  'Egypt': [
+    ['why_this_market', 'Import-licence regime; paused until licensing is confirmed.', 'human_approved'],
+    ['import_volume', '4,100 MT / yr', 'unverified', 'Estimated'],
+    ['duty', 'Import licence required', 'human_approved'],
+  ],
+}
+
 /** stage values match the `stage` enum in 0001_schema.sql */
-const COMPANIES = [
+const COMPANIES: Array<{ key: string; name: string; website: string; market: string; company_type: string; stage: Stage; fit_score: number; owner: string }> = [
   { key: 'yildiz', name: 'Yıldız Tekstil A.Ş.', website: 'yildiztekstil.test', market: 'Türkiye', company_type: 'Converter', stage: 'commercial_discussion', fit_score: 91, owner: 'rifat.hasan@anwargroup.test' },
   { key: 'nordfiber', name: 'NordFiber Handels GmbH', website: 'nordfiber.test', market: 'Germany', company_type: 'Importer', stage: 'outreach', fit_score: 87, owner: 'rifat.hasan@anwargroup.test' },
   { key: 'atlas', name: 'Atlas Home Textiles Ltd', website: 'atlastextiles.test', market: 'United Kingdom', company_type: 'Retail buyer', stage: 'meeting', fit_score: 84, owner: 'rifat.hasan@anwargroup.test' },
@@ -65,6 +119,26 @@ const COMPANIES = [
   { key: 'gulfpack', name: 'Gulf Pack Industries', website: 'gulfpack.test', market: 'UAE', company_type: 'Converter', stage: 'company_research', fit_score: 52, owner: 'nusrat.jahan@anwargroup.test' },
   { key: 'thames', name: 'Thames Eco Supply Co.', website: 'thameseco.test', market: 'United Kingdom', company_type: 'Distributor', stage: 'qualification', fit_score: 69, owner: 'rifat.hasan@anwargroup.test' },
 ]
+
+/**
+ * Which product each company is being worked for. The catalog screen derives
+ * "Active leads" from this. Kept as a map on the company key so a single company
+ * can be re-pointed without touching the array below.
+ */
+const PRODUCT_BY_KEY: Record<string, string> = {
+  yildiz: 'Jute yarn',
+  nordfiber: 'Jute yarn',
+  atlas: 'Woven jute bags',
+  kyoto: 'Jute yarn',
+  sahara: 'Woven jute bags',
+  bosphorus: 'Woven jute bags',
+  verde: 'Woven jute bags',
+  hansa: 'Jute yarn',
+  nileco: 'Jute yarn',
+  osaka: 'Jute yarn',
+  gulfpack: 'Woven jute bags',
+  thames: 'Knit garments',
+}
 
 /** [key, value, provenance, isQualificationCriterion] */
 const FACTS: Record<string, Array<[string, string, 'verified' | 'unverified' | 'ai' | 'human_approved', boolean]>> = {
@@ -102,7 +176,7 @@ const FACTS: Record<string, Array<[string, string, 'verified' | 'unverified' | '
   ],
 }
 
-const CONTACTS = [
+const CONTACTS: Array<{ company: string; full_name: string; role_title: string; email: string; email_source: string; provenance: Provenance; lawful_basis: string; is_primary: boolean }> = [
   { company: 'yildiz', full_name: 'Selin Aydın', role_title: 'Sourcing Manager', email: 's.aydin@yildiztekstil.test', email_source: 'Company site, supplier enquiry page', provenance: 'verified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
   { company: 'yildiz', full_name: 'Murat Yıldız', role_title: 'Managing Director', email: 'm.yildiz@yildiztekstil.test', email_source: 'Registry filing', provenance: 'verified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: false },
   { company: 'nordfiber', full_name: 'Lena Brauer', role_title: 'Head of Procurement', email: 'l.brauer@nordfiber.test', email_source: 'Company site, team page', provenance: 'verified', lawful_basis: 'Legitimate interest — B2B, relevant product', is_primary: true },
@@ -201,12 +275,45 @@ async function seedUsers() {
 }
 
 async function seedCatalog() {
+  // `product` has no unique constraint on `name` (unlike `market.country`), so an
+  // `onConflict: 'name'` upsert errors with "no unique or exclusion constraint" and
+  // silently leaves the table empty. Select-then-write instead.
   for (const p of PRODUCTS) {
-    const { data } = await admin.from('product').upsert(p, { onConflict: 'name' }).select('id').single()
-    if (data) ids.products[p.name] = data.id
+    const { data: existing } = await admin.from('product').select('id').eq('name', p.name).maybeSingle()
+    if (existing) {
+      ids.products[p.name] = existing.id
+      const { error } = await admin.from('product').update(p).eq('id', existing.id)
+      if (error) throw new Error(`product ${p.name}: ${error.message}`)
+    } else {
+      const { data, error } = await admin.from('product').insert(p).select('id').single()
+      if (error) throw new Error(`product ${p.name}: ${error.message}`)
+      ids.products[p.name] = data.id
+    }
   }
-  await admin.from('market').upsert(MARKETS, { onConflict: 'country' })
+  const { error: mErr } = await admin.from('market').upsert(MARKETS, { onConflict: 'country' })
+  if (mErr) throw new Error(`markets: ${mErr.message}`)
   console.log(`  ${PRODUCTS.length} products, ${MARKETS.length} markets`)
+}
+
+async function seedMarketNotes() {
+  const { data: markets } = await admin.from('market').select('id, country')
+  const idByCountry: Record<string, string> = {}
+  for (const m of markets ?? []) idByCountry[m.country] = m.id
+
+  let count = 0
+  for (const [country, notes] of Object.entries(MARKET_NOTES)) {
+    const marketId = idByCountry[country]
+    if (!marketId) throw new Error(`market note: no market "${country}"`)
+    for (const [key, value, provenance, sourceLabel] of notes) {
+      const { error } = await admin.from('market_note').upsert(
+        { market_id: marketId, key, value, provenance, source_label: sourceLabel ?? null },
+        { onConflict: 'market_id,key' },
+      )
+      if (error) throw new Error(`market note ${country}/${key}: ${error.message}`)
+      count++
+    }
+  }
+  console.log(`  ${count} market notes`)
 }
 
 async function seedCompanies() {
@@ -219,7 +326,7 @@ async function seedCompanies() {
       stage: c.stage,
       fit_score: c.fit_score,
       owner_id: ids.users[c.owner],
-      product_id: ids.products['Jute yarn'],
+      product_id: ids.products[PRODUCT_BY_KEY[c.key] ?? 'Jute yarn'],
       next_touch_at:
         c.key === 'sahara' ? new Date().toISOString()
         : c.key === 'bosphorus' ? daysAgo(-1)
@@ -376,9 +483,11 @@ async function seedConversations() {
 
 async function reset() {
   console.log('resetting app data (auth users kept)…')
-  for (const t of ['audit_event', 'reply', 'message', 'meeting', 'task', 'fact', 'source', 'contact', 'ai_run', 'company', 'suppression']) {
-    await admin.from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  const noId = '00000000-0000-0000-0000-000000000000'
+  for (const t of ['audit_event', 'reply', 'message', 'meeting', 'task', 'market_note', 'fact', 'source', 'contact', 'ai_run', 'company'] as const) {
+    await admin.from(t).delete().neq('id', noId)
   }
+  await admin.from('suppression').delete().neq('email_or_domain', '')
 }
 
 async function main() {
@@ -387,6 +496,7 @@ async function main() {
   console.log('seeding TradeReach AI…')
   await seedUsers()
   await seedCatalog()
+  await seedMarketNotes()
   await seedCompanies()
   await seedConversations()
 

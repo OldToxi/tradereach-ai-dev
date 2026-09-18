@@ -12,67 +12,67 @@ Task ID format: `T<phase>.<n>`. Tasks marked **[parallel-safe]** may be done out
 Full instructions in `SETUP.md`. Do **0.2 first** — it is the critical path and the most
 likely thing to go wrong.
 
-- [ ] T0.1 Create empty GitHub repo, clone, drop these files in, `git push`
-- [ ] T0.2 Google Cloud: project → OAuth consent screen (External, Testing) → add your own
+- [x] T0.1 Create empty GitHub repo, clone, drop these files in, `git push`
+- [x] T0.2 Google Cloud: project → OAuth consent screen (External, Testing) → add your own
       email as a test user → scope `https://www.googleapis.com/auth/gmail.compose` →
       OAuth client (Web) → redirect URIs for `localhost:3000` and the Vercel URL
-- [ ] T0.3 Supabase: new project, copy URL, anon key, service role key, DB password
-- [ ] T0.4 Anthropic console: API key, set a monthly spend cap
+- [x] T0.3 Supabase: new project, copy URL, anon key, service role key, DB password
+- [x] T0.4 Anthropic console: API key, set a monthly spend cap
 - [ ] T0.5 Vercel: import the repo, add every var from `.env.example` to the project
-- [ ] T0.6 Locally: `cp .env.example .env.local`, fill it, `npm install`
+- [x] T0.6 Locally: `cp .env.example .env.local`, fill it, `npm install`
 
 ---
 
 ## Phase 1 — Foundation
 
-- [ ] T1.1 Scaffold Next.js App Router + TypeScript + Tailwind. `npm run verify` script
+- [x] T1.1 Scaffold Next.js App Router + TypeScript + Tailwind. `npm run verify` script
       (`tsc --noEmit && next lint && vitest run`). Prettier. `.gitignore` covers `.env*.local`
-- [ ] T1.2 Tailwind theme from `design/mock-ui.html` `:root` — colours, dark mode, the four
+- [x] T1.2 Tailwind theme from `design/mock-ui.html` `:root` — colours, dark mode, the four
       provenance badge styles as components in `components/ui/Provenance.tsx`
-- [ ] T1.3 Apply `supabase/migrations/0001_schema.sql` (**already written** — see Pre-written files) with `supabase db push`. Add tables if a later task needs them; never loosen a CHECK constraint
+- [x] T1.3 Apply `supabase/migrations/0001_schema.sql` (**already written** — see Pre-written files) with `supabase db push`. Add tables if a later task needs them; never loosen a CHECK constraint
       `supabase/migrations/0001_schema.sql` already in this repo; extend, don't rewrite.
       Apply with `supabase db push`
-- [ ] T1.4 Apply `supabase/migrations/0002_rls.sql` (**already written**) — enable RLS on every table, write policies for
+- [x] T1.4 Apply `supabase/migrations/0002_rls.sql` (**already written**) — enable RLS on every table, write policies for
       `company`, `fact`, `contact`, `message`, `source`. `gmail_token` gets RLS and **zero**
       policies. Deny-by-default everywhere
-- [ ] T1.5 Apply `supabase/migrations/0003_auth_hook.sql` (**already written**) AND enable it in the Supabase dashboard — Authentication → Hooks → Customize Access Token. Do this BEFORE testing T1.4. Custom access token hook copying `role` and `assigned_markets` from `profiles`
+- [x] T1.5 Apply `supabase/migrations/0003_auth_hook.sql` (**already written**) AND enable it in the Supabase dashboard — Authentication → Hooks → Customize Access Token. Do this BEFORE testing T1.4. Custom access token hook copying `role` and `assigned_markets` from `profiles`
       into the JWT `app_metadata`. Verify with a decoded token
-- [ ] T1.6 `npx supabase gen types typescript --linked > lib/database.types.ts`
-- [ ] T1.7 `lib/supabase/server.ts` (user client, cookie-bound) and `lib/supabase/admin.ts`
+- [x] T1.6 `npx supabase gen types typescript --linked > lib/database.types.ts`
+- [x] T1.7 `lib/supabase/server.ts` (user client, cookie-bound) and `lib/supabase/admin.ts`
       (service role, with a comment naming its only three legal callers)
-- [ ] T1.8 Verify `lib/session.ts` (**already written**) — `currentUser()`, role helpers `canApprove()`,
+- [x] T1.8 Verify `lib/session.ts` (**already written**) — `currentUser()`, role helpers `canApprove()`,
       `canReleaseCommercial()`, `marketsFor()`. Stub mode via `AUTH_MODE=stub` +
       `DEV_USER`, and a hard `throw` if stub is on in production
-- [ ] T1.9 Run `npm run seed` (**already written**) — port `COMPANIES`, `DETAIL`, `REPLIES`, `AUDIT`, products,
+- [x] T1.9 Run `npm run seed` (**already written**) — port `COMPANIES`, `DETAIL`, `REPLIES`, `AUDIT`, products,
       markets, contacts from the mock's `<script>` block. Four users: rifat (manager),
       nusrat (executive), tanvir (executive), mahbub (commercial), audit (auditor).
       Seeds the mid-journey state the demo needs
-- [ ] T1.10 Verify `lib/audit.ts` (**already written**) — `writeAudit({actor, event, object, detail})` via the admin
+- [x] T1.10 Verify `lib/audit.ts` (**already written**) — `writeAudit({actor, event, object, detail})` via the admin
       client. Every later task calls this
 
 ---
 
 ## Phase 2 — Auth and app shell
 
-- [ ] T2.1 `@supabase/ssr` cookie session + `middleware.ts` refresh. Protect all routes
+- [x] T2.1 `@supabase/ssr` cookie session + `middleware.ts` refresh. Protect all routes
       except `/login`
-- [ ] T2.2 `/login` — port the mock's sign-in screen. Email + password. Role note under the
+- [x] T2.2 `/login` — port the mock's sign-in screen. Email + password. Role note under the
       field. Real Supabase auth against the seeded users
-- [ ] T2.3 App shell: left rail with the mock's exact groups and routes, top bar with search,
+- [x] T2.3 App shell: left rail with the mock's exact groups and routes, top bar with search,
       theme toggle, "Add company". Mobile drawer at 860px
-- [ ] T2.4 Role-aware rail: hide Settings→Users from non-managers, hide approve controls from
+- [x] T2.4 Role-aware rail: hide Settings→Users from non-managers, hide approve controls from
       executives. Audit every refused access
-- [ ] T2.5 Sign out, session expiry, and a visible "signed in as, role" block in the rail foot
+- [x] T2.5 Sign out, session expiry, and a visible "signed in as, role" block in the rail foot
 
 ---
 
 ## Phase 3 — Catalog (what we sell, where)
 
-- [ ] T3.1 `/products` list + `Add product` modal. Capability sheet detail view **[parallel-safe]**
-- [ ] T3.2 Capability sheet is the *only* commercial context an AI prompt may read. Add the
+- [x] T3.1 `/products` list + `Add product` modal. Capability sheet detail view **[parallel-safe]**
+- [x] T3.2 Capability sheet is the *only* commercial context an AI prompt may read. Add the
       allowlist in `lib/ai/context.ts` and a test asserting reserved fields never appear
-- [ ] T3.3 `/markets` list + `Add market` modal + market note detail with provenance badges
-- [ ] T3.4 Market guardrails: send window, weekly outreach cap, required-before-sending rules.
+- [x] T3.3 `/markets` list + `Add market` modal + market note detail with provenance badges
+- [x] T3.4 Market guardrails: send window, weekly outreach cap, required-before-sending rules.
       Stored per market, read by the pre-send checks in T7.4
 
 ---

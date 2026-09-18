@@ -48,6 +48,26 @@ if (STUB && process.env.NODE_ENV === 'production') {
   )
 }
 
+interface AccessTokenClaims {
+  app_metadata?: { role?: Role; markets?: string[] }
+}
+
+/**
+ * Read the hook-added claims straight off the JWT. `user.app_metadata` won't have
+ * them — the custom access token hook (T1.5) mutates the token, but GoTrue's `/user`
+ * endpoint returns the database `app_metadata` unchanged.
+ */
+function decodeAccessTokenClaims(token?: string): AccessTokenClaims | null {
+  if (!token) return null
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+  } catch {
+    return null
+  }
+}
+
 /**
  * The current user, or throws. Cached per request, so calling it in a dozen
  * components costs one lookup.
@@ -63,11 +83,13 @@ export const currentUser = cache(async (): Promise<SessionUser> => {
 
   if (error || !user) throw new AuthError('Not signed in')
 
-  // Role and markets are in the JWT via the custom access token hook (T1.5), so
-  // this is free — no extra round trip.
-  const meta = (user.app_metadata ?? {}) as { role?: Role; markets?: string[] }
+  // Role and markets are added to the access token's claims by the custom access
+  // token hook (T1.5). They do NOT appear in `user.app_metadata` — GoTrue returns
+  // the database copy there, so read them straight off the token payload.
+  const { data } = await supabase.auth.getSession()
+  const claims = decodeAccessTokenClaims(data.session?.access_token)
 
-  if (!meta.role) {
+  if (!claims?.app_metadata?.role) {
     // Hook not applied, or a user created outside the seed. Fail loudly: a missing
     // role silently defaulting to something permissive is how access control dies.
     throw new AuthError(
@@ -79,8 +101,8 @@ export const currentUser = cache(async (): Promise<SessionUser> => {
     id: user.id,
     email: user.email!,
     fullName: (user.user_metadata?.full_name as string) ?? user.email!,
-    role: meta.role,
-    assignedMarkets: meta.markets ?? [],
+    role: claims.app_metadata.role,
+    assignedMarkets: claims.app_metadata.markets ?? [],
   }
 })
 

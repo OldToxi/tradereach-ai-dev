@@ -85,6 +85,11 @@ export const AUDIT = {
   FIELD_UNVERIFIED: 'Field returned to unverified',
   SOURCE_ADDED: 'Source added',
   CRITERION_CONFIRMED: 'Qualification criterion confirmed',
+  // catalog
+  PRODUCT_ADDED: 'Product added',
+  PRODUCT_EDITED: 'Product edited',
+  MARKET_ADDED: 'Market added',
+  MARKET_EDITED: 'Market edited',
   // lifecycle
   COMPANY_ADDED: 'Company added',
   STAGE_CHANGED: 'Stage changed',

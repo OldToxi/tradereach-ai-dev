@@ -16,12 +16,12 @@
 -- ---------- claim helpers ----------
 -- Kept as functions so a claim shape change is one edit, not thirty.
 
-create or replace function auth.jwt_role() returns text
+create or replace function jwt_role() returns text
 language sql stable as $$
   select coalesce(auth.jwt() -> 'app_metadata' ->> 'role', 'none')
 $$;
 
-create or replace function auth.jwt_markets() returns text[]
+create or replace function jwt_markets() returns text[]
 language sql stable as $$
   select coalesce(
     array(select jsonb_array_elements_text(auth.jwt() -> 'app_metadata' -> 'markets')),
@@ -30,29 +30,29 @@ language sql stable as $$
 $$;
 
 /* True for roles that are not market-scoped. */
-create or replace function auth.sees_all_markets() returns boolean
+create or replace function sees_all_markets() returns boolean
 language sql stable as $$
-  select auth.jwt_role() in ('manager','commercial','auditor')
+  select jwt_role() in ('manager','commercial','auditor')
 $$;
 
-create or replace function auth.can_see_market(m text) returns boolean
+create or replace function can_see_market(m text) returns boolean
 language sql stable as $$
-  select auth.sees_all_markets() or m = any (auth.jwt_markets())
+  select sees_all_markets() or m = any (jwt_markets())
 $$;
 
-create or replace function auth.can_write() returns boolean
+create or replace function can_write() returns boolean
 language sql stable as $$
-  select auth.jwt_role() in ('executive','manager','commercial')
+  select jwt_role() in ('executive','manager','commercial')
 $$;
 
-create or replace function auth.can_approve() returns boolean
+create or replace function can_approve() returns boolean
 language sql stable as $$
-  select auth.jwt_role() in ('manager','commercial')
+  select jwt_role() in ('manager','commercial')
 $$;
 
-create or replace function auth.is_commercial() returns boolean
+create or replace function is_commercial() returns boolean
 language sql stable as $$
-  select auth.jwt_role() = 'commercial'
+  select jwt_role() = 'commercial'
 $$;
 
 -- ---------- enable everywhere ----------
@@ -75,88 +75,88 @@ alter table gmail_token   enable row level security;   -- and no policies. See b
 -- ---------- profiles ----------
 create policy profiles_read_self_and_team on profiles
   for select using (
-    id = auth.uid() or auth.jwt_role() in ('manager','commercial','auditor')
+    id = auth.uid() or jwt_role() in ('manager','commercial','auditor')
   );
 
 create policy profiles_manager_writes on profiles
-  for all using (auth.jwt_role() = 'manager')
-  with check (auth.jwt_role() = 'manager');
+  for all using (jwt_role() = 'manager')
+  with check (jwt_role() = 'manager');
 
 -- ---------- catalog: readable by all signed-in, writable by managers ----------
 create policy product_read on product for select using (auth.uid() is not null);
 create policy product_write on product for all
-  using (auth.jwt_role() = 'manager') with check (auth.jwt_role() = 'manager');
+  using (jwt_role() = 'manager') with check (jwt_role() = 'manager');
 
 create policy market_read on market for select using (auth.uid() is not null);
 create policy market_write on market for all
-  using (auth.jwt_role() = 'manager') with check (auth.jwt_role() = 'manager');
+  using (jwt_role() = 'manager') with check (jwt_role() = 'manager');
 
 -- ---------- company: the market scope, and everything inherits it ----------
 create policy company_read on company
-  for select using (auth.can_see_market(market));
+  for select using (can_see_market(market));
 
 create policy company_insert on company
-  for insert with check (auth.can_write() and auth.can_see_market(market));
+  for insert with check (can_write() and can_see_market(market));
 
 create policy company_update on company
-  for update using (auth.can_write() and auth.can_see_market(market))
-  with check (auth.can_see_market(market));
+  for update using (can_write() and can_see_market(market))
+  with check (can_see_market(market));
 
 -- Deletion is not a thing. Companies are disqualified or closed, never removed —
 -- the research and the reason are the record. No delete policy exists, so no
 -- delete is possible.
 
 -- ---------- child tables: scope follows the parent company ----------
-create or replace function auth.company_visible(cid uuid) returns boolean
+create or replace function company_visible(cid uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from company c
-     where c.id = cid and auth.can_see_market(c.market)
+     where c.id = cid and can_see_market(c.market)
   )
 $$;
 
-create policy fact_read on fact for select using (auth.company_visible(company_id));
+create policy fact_read on fact for select using (company_visible(company_id));
 create policy fact_write on fact for all
-  using (auth.can_write() and auth.company_visible(company_id))
-  with check (auth.can_write() and auth.company_visible(company_id));
+  using (can_write() and company_visible(company_id))
+  with check (can_write() and company_visible(company_id));
 
-create policy source_read on source for select using (auth.company_visible(company_id));
+create policy source_read on source for select using (company_visible(company_id));
 create policy source_write on source for all
-  using (auth.can_write() and auth.company_visible(company_id))
-  with check (auth.can_write() and auth.company_visible(company_id));
+  using (can_write() and company_visible(company_id))
+  with check (can_write() and company_visible(company_id));
 
-create policy contact_read on contact for select using (auth.company_visible(company_id));
+create policy contact_read on contact for select using (company_visible(company_id));
 create policy contact_write on contact for all
-  using (auth.can_write() and auth.company_visible(company_id))
-  with check (auth.can_write() and auth.company_visible(company_id));
+  using (can_write() and company_visible(company_id))
+  with check (can_write() and company_visible(company_id));
 
 create policy task_read on task for select
-  using (company_id is null or auth.company_visible(company_id));
+  using (company_id is null or company_visible(company_id));
 create policy task_write on task for all
-  using (auth.can_write() and (company_id is null or auth.company_visible(company_id)))
-  with check (auth.can_write() and (company_id is null or auth.company_visible(company_id)));
+  using (can_write() and (company_id is null or company_visible(company_id)))
+  with check (can_write() and (company_id is null or company_visible(company_id)));
 
-create policy meeting_read on meeting for select using (auth.company_visible(company_id));
+create policy meeting_read on meeting for select using (company_visible(company_id));
 create policy meeting_write on meeting for all
-  using (auth.can_write() and auth.company_visible(company_id))
-  with check (auth.can_write() and auth.company_visible(company_id));
+  using (can_write() and company_visible(company_id))
+  with check (can_write() and company_visible(company_id));
 
-create policy reply_read on reply for select using (auth.company_visible(company_id));
+create policy reply_read on reply for select using (company_visible(company_id));
 create policy reply_write on reply for all
-  using (auth.can_write() and auth.company_visible(company_id))
-  with check (auth.can_write() and auth.company_visible(company_id));
+  using (can_write() and company_visible(company_id))
+  with check (can_write() and company_visible(company_id));
 
 create policy ai_run_read on ai_run for select
-  using (company_id is null or auth.company_visible(company_id));
+  using (company_id is null or company_visible(company_id));
 -- ai_run rows are written by the service role only. No insert policy.
 
 -- ---------- message: where approval is enforced ----------
-create policy message_read on message for select using (auth.company_visible(company_id));
+create policy message_read on message for select using (company_visible(company_id));
 
 create policy message_insert on message
   for insert with check (
-    auth.can_write()
-    and auth.company_visible(company_id)
+    can_write()
+    and company_visible(company_id)
     -- Nobody creates a row that is already approved. Approval is a separate,
     -- audited act performed by an approver.
     and status in ('draft','awaiting_approval')
@@ -172,16 +172,16 @@ create policy message_insert on message
   anything.
 */
 create policy message_update on message
-  for update using (auth.can_write() and auth.company_visible(company_id))
+  for update using (can_write() and company_visible(company_id))
   with check (
-    auth.company_visible(company_id)
+    company_visible(company_id)
     and (
       -- ordinary editing, still unapproved
       (status in ('draft','awaiting_approval','rejected') and approved_by is null)
       -- approving: approver role, and it must be them
-      or (status = 'approved' and auth.can_approve() and approved_by = auth.uid())
+      or (status = 'approved' and can_approve() and approved_by = auth.uid())
       -- releasing a held draft: commercial only
-      or (status = 'held_commercial' and auth.is_commercial())
+      or (status = 'held_commercial' and is_commercial())
       -- sent is written by the connector path, service role only
     )
   );
@@ -189,7 +189,7 @@ create policy message_update on message
 -- ---------- suppression: add only, never remove ----------
 create policy suppression_read on suppression for select using (auth.uid() is not null);
 create policy suppression_insert on suppression
-  for insert with check (auth.can_write());
+  for insert with check (can_write());
 -- No update, no delete policy. "No further contact" is permanent, and neither an
 -- import nor an agent can undo it. Asserted by a test in T9.6.
 
