@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradeReach AI — Export outreach workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0F3; --surface:#FFFFFF; --surface-2:#F6F8F9; --ink:#0E2430; --ink-2:#3C5260;
+  --ink-3:#6B7F8B; --line:#D3DBE1; --line-2:#E4EAEE;
+  --ochre:#B4762A; --ochre-soft:#F6EBD9;
+  --verified:#0E6F63; --verified-soft:#DCEDE9;
+  --unverified:#A9741A; --unverified-soft:#F7EDD7;
+  --ai:#5647C4; --ai-soft:#E9E6F9;
+  --alert:#AF3A30; --alert-soft:#F8E3E0;
+  --rail:#0E2430; --rail-ink:#AFC2CD; --rail-active:#FFFFFF;
+  --shadow:0 1px 0 rgba(14,36,48,.05), 0 6px 22px -14px rgba(14,36,48,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B1820; --surface:#11242E; --surface-2:#152B36; --ink:#E7EEF2; --ink-2:#B4C6D0;
+    --ink-3:#8299A6; --line:#26404D; --line-2:#1D3542;
+    --ochre:#D79A4C; --ochre-soft:#3A2C16;
+    --verified:#4EBBA8; --verified-soft:#0E3A35;
+    --unverified:#D9A64A; --unverified-soft:#3A2E13;
+    --ai:#9E90F5; --ai-soft:#251F4A;
+    --alert:#E4796D; --alert-soft:#3D1D19;
+    --rail:#081219; --rail-ink:#8AA1AF; --rail-active:#FFFFFF;
+    --shadow:0 1px 0 rgba(0,0,0,.3), 0 8px 26px -16px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B1820; --surface:#11242E; --surface-2:#152B36; --ink:#E7EEF2; --ink-2:#B4C6D0;
+  --ink-3:#8299A6; --line:#26404D; --line-2:#1D3542;
+  --ochre:#D79A4C; --ochre-soft:#3A2C16;
+  --verified:#4EBBA8; --verified-soft:#0E3A35;
+  --unverified:#D9A64A; --unverified-soft:#3A2E13;
+  --ai:#9E90F5; --ai-soft:#251F4A;
+  --alert:#E4796D; --alert-soft:#3D1D19;
+  --rail:#081219; --rail-ink:#8AA1AF; --rail-active:#FFFFFF;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 8px 26px -16px #000;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:Archivo, "Helvetica Neue", Arial, sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+code,.mono{font-family:"Spline Sans Mono", ui-monospace, Menlo, monospace}
+h1,h2,h3,h4{margin:0; font-weight:600; letter-spacing:-.012em}
+h1{font-size:23px} h2{font-size:17px} h3{font-size:15px} h4{font-size:13px}
+p{margin:0 0 10px}
+a{color:inherit}
+button{font-family:inherit; font-size:inherit; cursor:pointer}
+:focus-visible{outline:2px solid var(--ochre); outline-offset:2px; border-radius:3px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important; transition:none!important}}
+
+/* ---------- login ---------- */
+#login{position:fixed; inset:0; z-index:60; background:var(--rail); display:grid; place-items:center; padding:24px}
+#login .box{width:min(880px,100%); display:grid; grid-template-columns:1.15fr .85fr; border:1px solid #1d3542; background:var(--surface); overflow:hidden}
+#login .brandside{background:linear-gradient(180deg,#0E2430,#123243); color:#DCE7ED; padding:38px 34px}
+#login .brandside .logo{display:flex; align-items:center; gap:10px; margin-bottom:26px}
+#login h1{color:#fff; font-size:27px; line-height:1.2; margin-bottom:10px}
+#login .brandside p{color:#9FB6C2; max-width:34ch}
+#login ul{margin:22px 0 0; padding:0; list-style:none; color:#9FB6C2; font-size:13px}
+#login li{padding:7px 0; border-top:1px solid #1E3E4E}
+#login .formside{padding:38px 32px}
+#login label{display:block; font-size:12px; color:var(--ink-3); margin:14px 0 5px}
+#login input,#login select{width:100%; padding:9px 10px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:2px}
+#login .note{font-size:12px; color:var(--ink-3); margin-top:16px; border-top:1px solid var(--line-2); padding-top:12px}
+@media (max-width:760px){#login .box{grid-template-columns:1fr} #login .brandside ul{display:none}}
+
+/* ---------- shell ---------- */
+.app{display:none; min-height:100vh}
+.app.on{display:grid; grid-template-columns:232px 1fr}
+.rail{background:var(--rail); color:var(--rail-ink); padding:16px 0 28px; position:sticky; top:0; height:100vh; overflow:auto}
+.rail .brand{display:flex; align-items:center; gap:9px; padding:0 16px 16px; color:#fff}
+.rail .brand b{font-size:15px; letter-spacing:-.02em}
+.rail .brand span{font-size:10px; color:#7D97A5; display:block; letter-spacing:.06em}
+.railgroup{margin-top:14px}
+.railgroup > p{font-size:10.5px; letter-spacing:.09em; color:#59727F; padding:0 16px 6px; margin:0; text-transform:uppercase}
+.rail a.nav{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 16px; color:var(--rail-ink); text-decoration:none; border-left:2px solid transparent; font-size:13.5px}
+.rail a.nav:hover{background:rgba(255,255,255,.05); color:#fff}
+.rail a.nav.active{background:rgba(255,255,255,.07); color:var(--rail-active); border-left-color:var(--ochre); font-weight:500}
+.rail .count{font-size:11px; background:rgba(255,255,255,.12); padding:1px 6px; border-radius:9px; color:#fff}
+.rail .count.hot{background:var(--ochre); color:#1A1206; font-weight:600}
+.railfoot{margin-top:22px; padding:12px 16px 0; border-top:1px solid #1B3442; font-size:12px; color:#6F8998}
+.railfoot .who{color:#CFE0E8; font-size:12.5px}
+
+main{min-width:0}
+.topbar{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:12px 22px; display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.topbar .crumb{font-size:12px; color:var(--ink-3)}
+.topbar .grow{flex:1}
+.search{display:flex; align-items:center; gap:7px; border:1px solid var(--line); background:var(--surface); padding:6px 9px; min-width:210px; border-radius:2px; color:var(--ink-3)}
+.search input{border:0; background:transparent; outline:none; color:var(--ink); width:100%; font-family:inherit}
+.wrap{padding:20px 22px 64px; max-width:1320px}
+.screen{display:none}
+.screen.on{display:block}
+.pagehead{display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px}
+.pagehead p{color:var(--ink-2); max-width:72ch; margin:6px 0 0}
+.pagehead .grow{flex:1}
+
+/* ---------- primitives ---------- */
+.btn{border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:7px 12px; border-radius:2px; font-size:13px; display:inline-flex; align-items:center; gap:7px}
+.btn:hover{border-color:var(--ink-3)}
+.btn.pri{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.btn.pri:hover{background:var(--ink-2); border-color:var(--ink-2)}
+.btn.go{background:var(--verified); border-color:var(--verified); color:#fff}
+.btn.warn{background:var(--surface); border-color:var(--alert); color:var(--alert)}
+.btn.sm{padding:4px 9px; font-size:12px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:3px; box-shadow:var(--shadow)}
+.card > header{padding:12px 14px; border-bottom:1px solid var(--line-2); display:flex; align-items:center; gap:10px}
+.card > header .grow{flex:1}
+.card .body{padding:14px}
+.grid{display:grid; gap:14px}
+.muted{color:var(--ink-3)}
+.small{font-size:12.5px}
+.tiny{font-size:11.5px}
+hr.sep{border:0; border-top:1px solid var(--line-2); margin:14px 0}
+
+/* provenance */
+.prov{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 7px; border-radius:2px; border:1px solid; white-space:nowrap; line-height:1.45}
+.prov i{width:7px; height:7px; border-radius:50%; display:block; flex:none}
+.prov.v{color:var(--verified); border-color:color-mix(in srgb,var(--verified) 35%,transparent); background:var(--verified-soft)} .prov.v i{background:var(--verified)}
+.prov.u{color:var(--unverified); border-color:color-mix(in srgb,var(--unverified) 35%,transparent); background:var(--unverified-soft)} .prov.u i{background:transparent; border:1.5px solid var(--unverified)}
+.prov.a{color:var(--ai); border-color:color-mix(in srgb,var(--ai) 35%,transparent); background:var(--ai-soft)} .prov.a i{background:var(--ai); border-radius:1px; transform:rotate(45deg); width:6px; height:6px}
+.prov.h{color:var(--ink); border-color:var(--line); background:var(--surface-2)} .prov.h i{background:var(--ochre)}
+.tag{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 7px; border:1px solid var(--line); border-radius:2px; background:var(--surface-2); color:var(--ink-2); white-space:nowrap}
+.tag.alert{color:var(--alert); border-color:color-mix(in srgb,var(--alert) 40%,transparent); background:var(--alert-soft)}
+.tag.ok{color:var(--verified); border-color:color-mix(in srgb,var(--verified) 40%,transparent); background:var(--verified-soft)}
+.tag.due{color:var(--ochre); border-color:color-mix(in srgb,var(--ochre) 45%,transparent); background:var(--ochre-soft)}
+
+/* AI block */
+.aiblock{border:1px solid color-mix(in srgb,var(--ai) 32%,transparent); background:var(--ai-soft); border-radius:3px; padding:12px 13px}
+.aiblock > .h{display:flex; align-items:center; gap:8px; margin-bottom:8px; color:var(--ai); font-weight:600; font-size:12.5px}
+.aiblock p{color:var(--ink); margin-bottom:8px}
+.aiblock .foot{font-size:11.5px; color:var(--ink-3); border-top:1px dashed color-mix(in srgb,var(--ai) 30%,transparent); padding-top:8px; margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
+/* tables */
+table{width:100%; border-collapse:collapse; font-size:13px}
+th{text-align:left; font-weight:600; font-size:11.5px; color:var(--ink-3); padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap}
+td{padding:9px 10px; border-bottom:1px solid var(--line-2); vertical-align:middle}
+tbody tr:hover{background:var(--surface-2)}
+tr.click{cursor:pointer}
+.num{font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+
+/* score */
+.score{display:inline-flex; align-items:baseline; gap:4px; font-weight:600; font-variant-numeric:tabular-nums}
+.bar{height:5px; background:var(--line-2); border-radius:3px; overflow:hidden; min-width:54px}
+.bar > span{display:block; height:100%; background:var(--ink-2)}
+.bar.hi > span{background:var(--verified)} .bar.mid > span{background:var(--ochre)} .bar.lo > span{background:var(--ink-3)}
+
+/* stat */
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line)}
+.stat{background:var(--surface); padding:13px 14px}
+.stat b{display:block; font-size:26px; font-variant-numeric:tabular-nums; letter-spacing:-.02em; line-height:1.1}
+.stat span{font-size:12px; color:var(--ink-3)}
+.stat em{font-style:normal; font-size:11.5px; color:var(--verified)}
+
+/* pipeline */
+.board{display:grid; grid-auto-flow:column; grid-auto-columns:238px; gap:12px; overflow-x:auto; padding-bottom:12px}
+.col{background:var(--surface-2); border:1px solid var(--line-2); border-radius:3px; min-height:180px}
+.col > h4{padding:9px 11px; border-bottom:1px solid var(--line-2); display:flex; justify-content:space-between; gap:6px; font-size:12.5px}
+.col > h4 span{color:var(--ink-3); font-weight:500}
+.col .stack{padding:9px; display:grid; gap:8px}
+.lead{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--ink-3); border-radius:2px; padding:9px 10px; cursor:pointer}
+.lead:hover{border-color:var(--ink-3)}
+.lead b{display:block; font-size:13px}
+.lead .meta{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+.lead.hot{border-left-color:var(--verified)} .lead.warm{border-left-color:var(--ochre)} .lead.cold{border-left-color:var(--ink-3)} .lead.risk{border-left-color:var(--alert)}
+
+/* holding lanes */
+.lanes{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:10px}
+.lane{border:1px dashed var(--line); border-radius:3px; padding:10px 11px; background:var(--surface)}
+.lane b{display:block; font-size:12.5px}
+.lane .n{font-size:20px; font-variant-numeric:tabular-nums; font-weight:600}
+
+/* detail layout */
+.split{display:grid; grid-template-columns:1.6fr .95fr; gap:14px; align-items:start}
+@media (max-width:1000px){.split{grid-template-columns:1fr}}
+.kv{display:grid; grid-template-columns:132px 1fr; gap:7px 12px; font-size:13px}
+.kv dt{color:var(--ink-3); margin:0} .kv dd{margin:0; display:flex; gap:7px; align-items:center; flex-wrap:wrap}
+
+/* tabs */
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--line); margin-bottom:14px; overflow-x:auto}
+.tabs button{background:transparent; border:0; border-bottom:2px solid transparent; padding:8px 12px; color:var(--ink-3); white-space:nowrap}
+.tabs button.on{color:var(--ink); border-bottom-color:var(--ochre); font-weight:500}
+.pane{display:none} .pane.on{display:block}
+
+/* email */
+.mail{border:1px solid var(--line); border-radius:3px; background:var(--surface)}
+.mail .hd{padding:11px 13px; border-bottom:1px solid var(--line-2); display:grid; gap:4px; font-size:13px}
+.mail .hd .row{display:flex; gap:8px} .mail .hd .row span{color:var(--ink-3); width:52px; flex:none}
+.mail .bd{padding:14px 15px; font-size:13.5px; line-height:1.65; white-space:pre-wrap}
+mark.why{background:var(--verified-soft); border-bottom:1.5px solid var(--verified); color:inherit; padding:0 1px}
+mark.risk{background:var(--alert-soft); border-bottom:1.5px solid var(--alert); color:inherit; padding:0 1px}
+.legendrow{display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-size:11.5px; color:var(--ink-3)}
+
+/* timeline */
+.tl{list-style:none; margin:0; padding:0}
+.tl li{display:grid; grid-template-columns:96px 14px 1fr; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-2)}
+.tl .when{color:var(--ink-3); font-size:12px; font-variant-numeric:tabular-nums}
+.tl .dot{position:relative}
+.tl .dot::before{content:""; position:absolute; left:3px; top:6px; width:8px; height:8px; border-radius:50%; background:var(--ink-3)}
+.tl li.ai .dot::before{background:var(--ai)} .tl li.human .dot::before{background:var(--ochre)} .tl li.sys .dot::before{background:var(--ink-3)} .tl li.good .dot::before{background:var(--verified)}
+.tl .what b{font-weight:600}
+
+/* toast + modal */
+#toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(14px); background:var(--ink); color:var(--paper); padding:10px 16px; border-radius:3px; font-size:13px; opacity:0; pointer-events:none; transition:.22s; z-index:70; box-shadow:var(--shadow)}
+#toast.on{opacity:1; transform:translateX(-50%)}
+.modal{position:fixed; inset:0; background:rgba(8,18,25,.55); display:none; place-items:center; z-index:65; padding:20px}
+.modal.on{display:grid}
+.modal .sheet{background:var(--surface); border:1px solid var(--line); width:min(620px,100%); max-height:86vh; overflow:auto; border-radius:3px}
+.modal .sheet header{padding:13px 15px; border-bottom:1px solid var(--line-2); display:flex; align-items:center}
+.modal .sheet .body{padding:15px}
+.modal .sheet footer{padding:12px 15px; border-top:1px solid var(--line-2); display:flex; justify-content:flex-end; gap:8px}
+label.f{display:block; font-size:12px; color:var(--ink-3); margin:12px 0 4px}
+input.f,select.f,textarea.f{width:100%; padding:8px 9px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:2px; font-family:inherit; font-size:13px}
+textarea.f{min-height:80px; resize:vertical}
+.frow{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+
+.railtoggle{display:none}
+@media (max-width:860px){
+  .app.on{grid-template-columns:1fr}
+  .rail{position:fixed; z-index:40; width:232px; transform:translateX(-100%); transition:.2s}
+  .rail.open{transform:none}
+  .railtoggle{display:inline-flex}
+  .wrap{padding:16px 14px 60px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="box">
+    <div class="brandside">
+      <div class="logo">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D79A4C" stroke-width="1.6"><path d="M2 17l10 4 10-4M2 12l10 4 10-4M12 3L2 7l10 4 10-4-10-4z"/></svg>
+        <div><b style="font-size:15px">TradeReach AI</b><span style="font-size:10px; color:#7D97A5; display:block; letter-spacing:.06em">ANWAR GROUP · EXPORT DEVELOPMENT</span></div>
+      </div>
+      <h1>One view of every export conversation.</h1>
+      <p>Research, qualify, and reach international buyers — with AI doing the reading and drafting, and your team keeping the final word.</p>
+      <ul>
+        <li>Research is separated from opinion. Every field carries its source.</li>
+        <li>No email leaves the building without a named approver.</li>
+        <li>Pricing, credit, MOQ and distributor terms stay with authorised staff.</li>
+      </ul>
+    </div>
+    <div class="formside">
+      <h2>Sign in</h2>
+      <p class="small muted" style="margin-top:6px">Demo workspace — pick a role to see how access changes.</p>
+      <label for="lg-email">Work email</label>
+      <input id="lg-email" class="f" type="email" value="rifat.hasan@anwargroup.test" autocomplete="username">
+      <label for="lg-pass">Password</label>
+      <input id="lg-pass" type="password" value="demo-password" autocomplete="current-password">
+      <label for="lg-role">Sign in as</label>
+      <select id="lg-role">
+        <option value="Export Executive">Export Executive — research, draft, request approval</option>
+        <option value="Export Manager" selected>Export Manager — approve outreach, manage pipeline</option>
+        <option value="Commercial Authority">Commercial Authority — release pricing &amp; terms</option>
+        <option value="Read-only Auditor">Read-only Auditor — view and export audit trail</option>
+      </select>
+      <div style="margin-top:18px; display:flex; gap:8px">
+        <button class="btn pri" onclick="signIn()">Sign in</button>
+        <button class="btn" onclick="signIn(true)">Continue with Google Workspace</button>
+      </div>
+      <div class="note">Sessions expire after 30 minutes idle. Gmail access uses OAuth — TradeReach never stores a password, and API keys live in server-side environment variables only.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="app">
+  <nav class="rail" id="rail">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D79A4C" stroke-width="1.6"><path d="M2 17l10 4 10-4M2 12l10 4 10-4M12 3L2 7l10 4 10-4-10-4z"/></svg>
+      <div><b>TradeReach AI</b><span>ANWAR GROUP</span></div>
+    </div>
+
+    <div class="railgroup">
+      <p>Workspace</p>
+      <a class="nav active" data-screen="dashboard" href="#dashboard">Dashboard</a>
+      <a class="nav" data-screen="pipeline" href="#pipeline">Opportunity pipeline <span class="count">34</span></a>
+    </div>
+    <div class="railgroup">
+      <p>What we sell, where</p>
+      <a class="nav" data-screen="products" href="#products">Products</a>
+      <a class="nav" data-screen="markets" href="#markets">Target markets</a>
+    </div>
+    <div class="railgroup">
+      <p>Who we sell to</p>
+      <a class="nav" data-screen="companies" href="#companies">Companies <span class="count">128</span></a>
+      <a class="nav" data-screen="contacts" href="#contacts">Decision-makers</a>
+    </div>
+    <div class="railgroup">
+      <p>Conversations</p>
+      <a class="nav" data-screen="review" href="#review">Review queue <span class="count hot">6</span></a>
+      <a class="nav" data-screen="outreach" href="#outreach">Sent &amp; follow-ups <span class="count">9</span></a>
+      <a class="nav" data-screen="replies" href="#replies">Replies <span class="count hot">4</span></a>
+      <a class="nav" data-screen="meetings" href="#meetings">Meetings &amp; tasks</a>
+    </div>
+    <div class="railgroup">
+      <p>Control</p>
+      <a class="nav" data-screen="audit" href="#audit">Audit trail</a>
+      <a class="nav" data-screen="settings" href="#settings">Settings &amp; access</a>
+      <a class="nav" data-screen="spec" href="#spec">Build notes</a>
+    </div>
+
+    <div class="railfoot">
+      <div class="who" id="whoami">Rifat Hasan</div>
+      <div id="whorole">Export Manager</div>
+      <button class="btn sm" style="margin-top:9px" onclick="signOut()">Sign out</button>
+    </div>
+  </nav>
+
+  <main>
+    <div class="topbar">
+      <button class="btn sm railtoggle" onclick="document.getElementById('rail').classList.toggle('open')">Menu</button>
+      <div class="crumb" id="crumb">Dashboard</div>
+      <div class="grow"></div>
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input placeholder="Search companies, contacts, emails" onkeydown="if(event.key==='Enter'){go('companies');toast('Searching across companies, contacts and threads')}">
+      </div>
+      <button class="btn sm" onclick="toggleTheme()" title="Switch light / dark">Theme</button>
+      <button class="btn sm pri" onclick="openModal('m-company')">Add company</button>
+    </div>
+    <div class="wrap" id="screens">
+
+<!-- ============ DASHBOARD ============ -->
+<section class="screen on" id="s-dashboard">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Good morning, Rifat</h1>
+      <p>Six drafts are waiting on you, four buyers replied overnight, and three follow-ups fall due today. Jute yarn into Türkiye is the market moving fastest this week.</p>
+    </div>
+    <div style="display:flex; gap:8px">
+      <button class="btn" onclick="go('review')">Open review queue</button>
+      <button class="btn pri" onclick="openModal('m-research')">Run AI research</button>
+    </div>
+  </div>
+
+  <div class="stats" style="margin-bottom:16px">
+    <div class="stat"><b class="num">128</b><span>Companies researched</span><br><em>+14 this week</em></div>
+    <div class="stat"><b class="num">41</b><span>Qualified for outreach</span><br><em class="muted" style="color:var(--ink-3)">32% of researched</em></div>
+    <div class="stat"><b class="num">6</b><span>Drafts awaiting approval</span><br><em style="color:var(--ochre)">2 older than 48h</em></div>
+    <div class="stat"><b class="num">9</b><span>Contacted, awaiting reply</span><br><em class="muted" style="color:var(--ink-3)">3 follow-ups due today</em></div>
+    <div class="stat"><b class="num">4</b><span>New replies to triage</span><br><em>1 classified as buying interest</em></div>
+    <div class="stat"><b class="num">2</b><span>Meetings scheduled</span><br><em class="muted" style="color:var(--ink-3)">Next: Thu 09:30 GMT+6</em></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.45fr .9fr" id="dashgrid">
+    <div class="grid" style="gap:14px">
+
+      <div class="card">
+        <header><h3>Needs you today</h3><div class="grow"></div><span class="tiny muted">Ranked by AI on deal value, recency and risk of going cold</span></header>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Company</th><th>Market</th><th>What's waiting</th><th>Age</th><th></th></tr></thead>
+            <tbody>
+              <tr class="click" onclick="openCompany('yildiz')"><td><b>Yıldız Tekstil A.Ş.</b></td><td>Türkiye</td><td><span class="tag alert">Reply mentions pricing — needs Commercial Authority</span></td><td class="num">2h</td><td><button class="btn sm" onclick="event.stopPropagation();go('replies')">Triage</button></td></tr>
+              <tr class="click" onclick="openCompany('nordfiber')"><td><b>NordFiber Handels GmbH</b></td><td>Germany</td><td><span class="tag due">First-touch draft awaiting approval</span></td><td class="num">51h</td><td><button class="btn sm" onclick="event.stopPropagation();go('review')">Review</button></td></tr>
+              <tr class="click" onclick="openCompany('sahara')"><td><b>Sahara Packaging LLC</b></td><td>UAE</td><td><span class="tag due">Follow-up #2 due today</span></td><td class="num">7d</td><td><button class="btn sm" onclick="event.stopPropagation();go('outreach')">Open thread</button></td></tr>
+              <tr class="click" onclick="openCompany('kyoto')"><td><b>Kyoto Green Materials K.K.</b></td><td>Japan</td><td><span class="tag">AI flagged missing data: importer licence, volumes</span></td><td class="num">1d</td><td><button class="btn sm" onclick="event.stopPropagation();openCompany('kyoto')">Research</button></td></tr>
+              <tr class="click" onclick="openCompany('atlas')"><td><b>Atlas Home Textiles Ltd</b></td><td>United Kingdom</td><td><span class="tag ok">Meeting confirmed — prep brief ready</span></td><td class="num">4h</td><td><button class="btn sm" onclick="event.stopPropagation();go('meetings')">Prepare</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h3>Pipeline by stage</h3><div class="grow"></div><button class="btn sm" onclick="go('pipeline')">Open board</button></header>
+        <div class="body">
+          <div id="funnel" class="grid" style="gap:7px"></div>
+          <hr class="sep">
+          <div class="legendrow">
+            <span><b style="color:var(--verified)">62%</b> reply rate on approved, researched outreach</span>
+            <span><b>19</b> hours of manual research saved this week (AI drafts accepted without edit: 58%)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h3>Where our effort is going</h3><div class="grow"></div><span class="tiny muted">Active leads by market</span></header>
+        <div class="body"><div id="marketbars" class="grid" style="gap:9px"></div></div>
+      </div>
+    </div>
+
+    <div class="grid" style="gap:14px; align-content:start">
+      <div class="aiblock">
+        <div class="h"><span class="prov a"><i></i>AI analysis</span> Weekly read-out</div>
+        <p>Türkiye and Germany are converting; the Gulf is not. Of 11 Gulf companies contacted, 9 are packaging converters buying on price, and none replied to a sustainability-led message. The three replies we did get all came from companies where a named sourcing manager was found before sending.</p>
+        <p><b>Suggested moves:</b> shift the Gulf angle from sustainability to lead time and freight from Chittagong; pause the two unqualified Egypt leads until export licence data is confirmed.</p>
+        <div class="foot"><span>Generated 06:40 today · gpt-class model · reviewed by no one yet</span><button class="btn sm" onclick="toast('Read-out marked as reviewed')">Mark reviewed</button></div>
+      </div>
+
+      <div class="card">
+        <header><h3>Follow-ups due</h3><div class="grow"></div><span class="tag due">3 today</span></header>
+        <div class="body grid" style="gap:10px">
+          <div><b>Sahara Packaging LLC</b><div class="small muted">Follow-up 2 of 3 · no reply in 7 days</div><div style="margin-top:6px; display:flex; gap:6px"><button class="btn sm" onclick="go('review')">Open AI draft</button><button class="btn sm" onclick="toast('Snoozed 3 days')">Snooze</button></div></div>
+          <hr class="sep" style="margin:0">
+          <div><b>Bosphorus Ambalaj</b><div class="small muted">Follow-up 1 of 3 · opened twice, no reply</div><div style="margin-top:6px; display:flex; gap:6px"><button class="btn sm" onclick="go('review')">Open AI draft</button><button class="btn sm" onclick="toast('Snoozed 3 days')">Snooze</button></div></div>
+          <hr class="sep" style="margin:0">
+          <div><b>Verde Embalagens Ltda</b><div class="small muted">Nurture touch · quarterly cadence</div><div style="margin-top:6px; display:flex; gap:6px"><button class="btn sm" onclick="go('review')">Open AI draft</button><button class="btn sm" onclick="toast('Snoozed 3 days')">Snooze</button></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h3>Data health</h3></header>
+        <div class="body grid" style="gap:9px">
+          <div style="display:flex; justify-content:space-between; gap:8px"><span class="prov v"><i></i>Verified fields</span><b class="num">1,842</b></div>
+          <div style="display:flex; justify-content:space-between; gap:8px"><span class="prov u"><i></i>Unverified fields</span><b class="num">377</b></div>
+          <div style="display:flex; justify-content:space-between; gap:8px"><span class="prov a"><i></i>AI-generated fields</span><b class="num">613</b></div>
+          <div style="display:flex; justify-content:space-between; gap:8px"><span class="prov h"><i></i>Human-approved messages</span><b class="num">47</b></div>
+          <hr class="sep" style="margin:2px 0">
+          <p class="tiny muted" style="margin:0">Nothing AI writes is treated as fact. Unverified fields block a company from moving past Qualification.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h3>Connector status</h3></header>
+        <div class="body grid" style="gap:8px">
+          <div style="display:flex; justify-content:space-between"><span>Gmail (draft-only scope)</span><span class="tag ok">Connected</span></div>
+          <div style="display:flex; justify-content:space-between"><span>Google Calendar</span><span class="tag ok">Connected</span></div>
+          <div style="display:flex; justify-content:space-between"><span>Company registry lookup</span><span class="tag ok">Connected</span></div>
+          <div style="display:flex; justify-content:space-between"><span>Trade data (UN Comtrade)</span><span class="tag">Sandbox key</span></div>
+          <div style="display:flex; justify-content:space-between"><span>Outbound sending</span><span class="tag alert">Disabled in demo</span></div>
+          <p class="tiny muted" style="margin:4px 0 0">Demo mode: recipients are forced to <code>*.test</code> addresses and mail is written to Drafts, never sent.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PIPELINE ============ -->
+<section class="screen" id="s-pipeline">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Opportunity pipeline</h1>
+      <p>The full journey, left to right. A lead can also sit in a holding lane below when it is waiting on research, approval, or simply on time to pass.</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <select class="btn" onchange="toast('Filtered by '+this.value)"><option>All products</option><option>Jute yarn</option><option>Woven jute bags</option><option>Knit garments</option><option>Ceramic tableware</option></select>
+      <select class="btn" onchange="toast('Filtered by '+this.value)"><option>All markets</option><option>Türkiye</option><option>Germany</option><option>Japan</option><option>UAE</option></select>
+      <select class="btn" onchange="toast('Owner: '+this.value)"><option>All owners</option><option>Rifat Hasan</option><option>Nusrat Jahan</option><option>Tanvir Alam</option></select>
+    </div>
+  </div>
+  <div class="board" id="board"></div>
+
+  <h3 style="margin:18px 0 10px">Holding lanes</h3>
+  <div class="lanes" id="lanes"></div>
+
+  <div class="card" style="margin-top:16px">
+    <header><h3>Stage rules</h3><div class="grow"></div><span class="tiny muted">Enforced by the app, not by memory</span></header>
+    <div class="body small">
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px">
+        <div><b>Qualification → Contact</b><div class="muted">Blocked while any qualification field is still unverified.</div></div>
+        <div><b>Contact → Outreach</b><div class="muted">Blocked without a named decision-maker and a source for the email address.</div></div>
+        <div><b>Outreach → sent</b><div class="muted">Blocked without a recorded approval by a user with the approver role.</div></div>
+        <div><b>Commercial discussion</b><div class="muted">Any message touching price, credit, MOQ or exclusivity routes to Commercial Authority first.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRODUCTS ============ -->
+<section class="screen" id="s-products">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Products</h1>
+      <p>What we are promoting, and the facts AI is allowed to use when it writes. A product's capability sheet is the only commercial information a draft may quote — anything beyond it has to come from a person.</p>
+    </div>
+    <button class="btn pri" onclick="openModal('m-product')">Add product</button>
+  </div>
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Product</th><th>HS code</th><th>Certifications</th><th>Capacity / month</th><th>Target markets</th><th>Active leads</th><th></th></tr></thead>
+        <tbody id="producttable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="split" style="margin-top:14px">
+    <div class="card">
+      <header><h3>Jute yarn — capability sheet</h3><div class="grow"></div><span class="prov v"><i></i>Verified by Production, 12 Aug</span></header>
+      <div class="body">
+        <dl class="kv">
+          <dt>Counts offered</dt><dd>4 lb to 20 lb · single &amp; twisted</dd>
+          <dt>Certifications</dt><dd><span class="tag ok">OEKO-TEX</span><span class="tag ok">ISO 9001</span><span class="tag">EUDR file in progress</span></dd>
+          <dt>Monthly capacity</dt><dd class="num">920 MT</dd>
+          <dt>Lead time</dt><dd>28–35 days ex-Chittagong</dd>
+          <dt>Packing</dt><dd>Hessian-wrapped bales, 200 kg</dd>
+          <dt>Sample policy</dt><dd><span class="tag alert">Requires Commercial Authority release</span></dd>
+        </dl>
+        <hr class="sep">
+        <p class="small muted" style="margin:0">Fields marked for commercial release — price, MOQ, payment terms, freight, exclusivity — are deliberately not stored here. AI cannot quote what it cannot see.</p>
+      </div>
+    </div>
+    <div class="aiblock">
+      <div class="h"><span class="prov a"><i></i>AI analysis</span> Market fit for jute yarn</div>
+      <p>Strongest fit sits with EU buyers replacing polypropylene under packaging rules, and with Japanese garden and agri-textile converters. Weakest fit is Gulf packaging, where the purchase decision is price-led and our lead time is 11 days longer than Indian suppliers.</p>
+      <div class="foot"><span>Based on 128 researched companies and 3 trade-flow sources</span><button class="btn sm" onclick="toast('Sources opened')">View sources</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MARKETS ============ -->
+<section class="screen" id="s-markets">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Target markets</h1>
+      <p>Countries under active development, with the trade evidence behind each choice and the rules that shape how we write to buyers there.</p>
+    </div>
+    <button class="btn pri" onclick="openModal('m-market')">Add market</button>
+  </div>
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Market</th><th>Product focus</th><th>Import demand</th><th>Tariff / access</th><th>Priority</th><th>Companies</th><th>Status</th><th></th></tr></thead>
+        <tbody id="markettable"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="split" style="margin-top:14px">
+    <div class="card">
+      <header><h3>Türkiye — market note</h3><div class="grow"></div><span class="prov v"><i></i>Verified</span><span class="prov a"><i></i>Partly AI</span></header>
+      <div class="body">
+        <dl class="kv">
+          <dt>Why this market</dt><dd>Second-largest buyer of Bangladeshi jute yarn; local spinners short on raw supply.</dd>
+          <dt>Import volume</dt><dd class="num">48,200 MT / yr <span class="prov v"><i></i>UN Comtrade 2025</span></dd>
+          <dt>Duty</dt><dd>0% under GSP <span class="prov u"><i></i>Needs re-check for 2026</span></dd>
+          <dt>Buying season</dt><dd>Orders cluster Jan–Mar <span class="prov a"><i></i>AI inferred from 9 replies</span></dd>
+          <dt>Language</dt><dd>English accepted; Turkish opener lifts reply rate</dd>
+          <dt>Local rules</dt><dd>Include company registration number in first contact</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="card">
+      <header><h3>Outreach guardrails for this market</h3></header>
+      <div class="body grid" style="gap:9px">
+        <div class="small"><b>Send window</b><div class="muted">08:00–17:00 Europe/Istanbul, Mon–Fri</div></div>
+        <div class="small"><b>Volume cap</b><div class="muted">Maximum 12 first-touch emails per week, per market. Quality over volume is enforced, not advised.</div></div>
+        <div class="small"><b>Required before sending</b><div class="muted">Named decision-maker · one verified trade source · product fit stated in the first two lines</div></div>
+        <div class="small"><b>Legal note</b><div class="muted">GDPR applies. Contact must have a lawful-interest basis recorded; unsubscribe honoured permanently.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPANIES ============ -->
+<section class="screen" id="s-companies">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Companies</h1>
+      <p>Every potential buyer, importer and distributor we have looked at — qualified or not, and clear about why.</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn" onclick="openModal('m-research')">Bulk AI research</button>
+      <button class="btn" onclick="toast('Exported 128 rows to CSV')">Export</button>
+      <button class="btn pri" onclick="openModal('m-company')">Add company</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="body" style="display:flex; gap:9px; flex-wrap:wrap; align-items:center; padding:11px 13px">
+      <select class="btn sm" id="f-stage" onchange="renderCompanies()"><option value="">All stages</option><option>Research</option><option>Qualification</option><option>Contact identification</option><option>Outreach</option><option>Follow-up</option><option>Reply</option><option>Meeting</option><option>Commercial discussion</option><option>Nurture</option><option>Disqualified</option></select>
+      <select class="btn sm" id="f-market" onchange="renderCompanies()"><option value="">All markets</option><option>Türkiye</option><option>Germany</option><option>Japan</option><option>UAE</option><option>United Kingdom</option><option>Brazil</option><option>Egypt</option></select>
+      <select class="btn sm" id="f-fit" onchange="renderCompanies()"><option value="">Any fit score</option><option value="80">80 and above</option><option value="60">60 and above</option><option value="0">Below 60</option></select>
+      <label class="small" style="display:flex; align-items:center; gap:6px"><input type="checkbox" id="f-gaps" onchange="renderCompanies()"> Only companies with missing data</label>
+      <div class="grow" style="flex:1"></div>
+      <span class="tiny muted" id="countline"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Company</th><th>Market</th><th>Type</th><th>AI fit score</th><th>Data</th><th>Stage</th><th>Decision-maker</th><th>Owner</th><th>Next action</th></tr></thead>
+        <tbody id="companytable"></tbody>
+      </table>
+    </div>
+  </div>
+  <p class="tiny muted" style="margin-top:10px">Fit score is an AI recommendation, never an approval. A company only moves forward when a person accepts it.</p>
+</section>
+
+<!-- ============ COMPANY DETAIL ============ -->
+<section class="screen" id="s-company">
+  <div class="pagehead">
+    <div class="grow">
+      <button class="btn sm" onclick="go('companies')">← All companies</button>
+      <h1 style="margin-top:9px" id="co-name">Company</h1>
+      <p id="co-sub"></p>
+      <div style="display:flex; gap:7px; flex-wrap:wrap; margin-top:8px" id="co-tags"></div>
+    </div>
+    <div style="display:grid; gap:8px; justify-items:end">
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button class="btn" onclick="openModal('m-research')">Re-run research</button>
+        <button class="btn" onclick="toast('Moved to Nurture — quarterly cadence')">Nurture</button>
+        <button class="btn warn" onclick="openModal('m-disq')">Disqualify</button>
+        <button class="btn pri" onclick="go('review')">Draft outreach</button>
+      </div>
+      <div class="tiny muted">Owner: Rifat Hasan · Last activity 2h ago</div>
+    </div>
+  </div>
+
+  <div class="tabs" id="cotabs">
+    <button class="on" onclick="cotab(this,'p-overview')">Overview</button>
+    <button onclick="cotab(this,'p-research')">Research &amp; sources</button>
+    <button onclick="cotab(this,'p-qual')">Qualification</button>
+    <button onclick="cotab(this,'p-people')">Decision-makers</button>
+    <button onclick="cotab(this,'p-comms')">Communication</button>
+    <button onclick="cotab(this,'p-history')">History</button>
+  </div>
+
+  <div class="pane on" id="p-overview">
+    <div class="split">
+      <div class="grid" style="gap:14px">
+        <div class="card">
+          <header><h3>Company record</h3><div class="grow"></div><span class="legendrow"><span class="prov v"><i></i>Verified</span><span class="prov u"><i></i>Unverified</span><span class="prov a"><i></i>AI</span></span></header>
+          <div class="body"><dl class="kv" id="co-kv"></dl></div>
+        </div>
+        <div class="aiblock">
+          <div class="h"><span class="prov a"><i></i>AI analysis</span> Opportunity summary</div>
+          <p id="co-summary"></p>
+          <div class="foot"><span id="co-sumfoot"></span><button class="btn sm" onclick="toast('Summary copied to the outreach brief')">Use in draft</button><button class="btn sm" onclick="toast('Flagged for human correction')">Disagree</button></div>
+        </div>
+        <div class="card">
+          <header><h3>Recommendation</h3><div class="grow"></div><span class="prov a"><i></i>AI, not a decision</span></header>
+          <div class="body">
+            <p id="co-reco" style="margin-bottom:12px"></p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <button class="btn go" onclick="toast('Accepted — moved to Contact identification')">Accept and advance</button>
+              <button class="btn" onclick="toast('Sent back for more research')">Needs more research</button>
+              <button class="btn" onclick="toast('Moved to Nurture')">Nurture instead</button>
+              <button class="btn warn" onclick="openModal('m-disq')">Disqualify</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="gap:14px; align-content:start">
+        <div class="card">
+          <header><h3>Fit score</h3><div class="grow"></div><b class="score" id="co-score">—</b></header>
+          <div class="body grid" style="gap:10px" id="co-breakdown"></div>
+          <div class="body" style="border-top:1px solid var(--line-2)"><p class="tiny muted" style="margin:0">Weights are configurable per product in Settings. Scores recalculate when new research lands, and every change is written to the audit trail.</p></div>
+        </div>
+        <div class="card">
+          <header><h3>Missing information</h3><div class="grow"></div><span class="prov a"><i></i>AI detected</span></header>
+          <div class="body grid" style="gap:9px" id="co-gaps"></div>
+        </div>
+        <div class="card">
+          <header><h3>Next action</h3></header>
+          <div class="body">
+            <p class="small" id="co-next"></p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap"><button class="btn sm pri" onclick="go('review')">Do it</button><button class="btn sm" onclick="toast('Reassigned to Nusrat Jahan')">Reassign</button><button class="btn sm" onclick="toast('Reminder set for Monday')">Remind me</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="p-research">
+    <div class="split">
+      <div class="grid" style="gap:14px">
+        <div class="aiblock">
+          <div class="h"><span class="prov a"><i></i>AI analysis</span> Research summary</div>
+          <p id="co-research"></p>
+          <div class="foot"><span>Read 14 pages · 6 kept as sources · 4 discarded as low quality</span><button class="btn sm" onclick="toast('Regenerating from current sources')">Regenerate</button></div>
+        </div>
+        <div class="card">
+          <header><h3>Sources</h3><div class="grow"></div><button class="btn sm" onclick="openModal('m-source')">Add source</button></header>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Source</th><th>Type</th><th>What it supports</th><th>Retrieved</th><th>Status</th></tr></thead>
+            <tbody id="co-sources"></tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <header><h3>Analyst notes</h3><div class="grow"></div><span class="prov h"><i></i>Human</span></header>
+          <div class="body">
+            <p class="small">Met their export manager at Dhaka Int'l Trade Fair 2025 — they were sampling hessian from two Indian mills and complained about inconsistent counts. Worth leading with consistency, not price. — <b>Nusrat Jahan, 4 Sep</b></p>
+            <textarea class="f" placeholder="Add a note. Notes are stored as human-verified and never rewritten by AI."></textarea>
+            <div style="margin-top:8px"><button class="btn sm" onclick="toast('Note saved as human-verified')">Save note</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="gap:14px; align-content:start">
+        <div class="card">
+          <header><h3>How to read this page</h3></header>
+          <div class="body grid" style="gap:10px">
+            <div><span class="prov v"><i></i>Verified</span><div class="small muted" style="margin-top:4px">Confirmed against a named source or by a colleague. Usable in outreach.</div></div>
+            <div><span class="prov u"><i></i>Unverified</span><div class="small muted" style="margin-top:4px">Claimed or scraped, no source confirmed. Blocks qualification; never appears in an email.</div></div>
+            <div><span class="prov a"><i></i>AI-generated</span><div class="small muted" style="margin-top:4px">Written or inferred by a model. Treated as opinion until a person accepts it.</div></div>
+            <div><span class="prov h"><i></i>Human-approved</span><div class="small muted" style="margin-top:4px">Signed off by a named person, with time and version recorded.</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><h3>Enrichment run</h3></header>
+          <div class="body small grid" style="gap:7px">
+            <div style="display:flex; justify-content:space-between"><span>Registry lookup</span><span class="tag ok">Matched</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Website crawl</span><span class="tag ok">9 pages</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Trade-flow check</span><span class="tag ok">Importer confirmed</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Sanctions / denied-party</span><span class="tag ok">Clear</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Contact discovery</span><span class="tag due">2 of 3 emails unverified</span></div>
+            <p class="tiny muted" style="margin:4px 0 0">Run cost: 0.031 USD · 48s · model and prompt version recorded in the audit trail.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="p-qual">
+    <div class="split">
+      <div class="card">
+        <header><h3>Qualification checklist</h3><div class="grow"></div><span class="tag due" id="qual-status">4 of 6 confirmed</span></header>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Criterion</th><th>Finding</th><th>Provenance</th><th>Confirm</th></tr></thead>
+          <tbody id="co-qual"></tbody>
+        </table></div>
+        <div class="body" style="border-top:1px solid var(--line-2)"><p class="tiny muted" style="margin:0">A criterion can be confirmed only against a source or by a person. Confirming writes your name, the time and the evidence to the audit trail.</p></div>
+      </div>
+      <div class="grid" style="gap:14px; align-content:start">
+        <div class="aiblock">
+          <div class="h"><span class="prov a"><i></i>AI analysis</span> Suitability</div>
+          <p id="co-suit"></p>
+          <div class="foot"><span>Confidence: medium — two criteria rest on a single source</span></div>
+        </div>
+        <div class="card">
+          <header><h3>Priority</h3></header>
+          <div class="body">
+            <p class="small">Ranked <b id="co-rank">#3</b> of 41 qualified companies for jute yarn. Ranking blends fit score, market priority, buying season and how recently the company showed activity.</p>
+            <button class="btn sm" onclick="toast('Priority overridden — reason required in audit note')">Override priority</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="p-people">
+    <div class="split">
+      <div class="card">
+        <header><h3>People found</h3><div class="grow"></div><button class="btn sm" onclick="openModal('m-contact')">Add contact</button></header>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Source</th><th>AI view</th><th></th></tr></thead>
+          <tbody id="co-people"></tbody>
+        </table></div>
+      </div>
+      <div class="aiblock">
+        <div class="h"><span class="prov a"><i></i>AI analysis</span> Most relevant decision-maker</div>
+        <p id="co-dm"></p>
+        <div class="foot"><span>If this person does not reply, the fallback is the general sourcing inbox with the same subject line.</span><button class="btn sm" onclick="toast('Selected as primary contact')">Select as primary</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="p-comms">
+    <div class="card" style="margin-bottom:14px">
+      <header><h3>Thread</h3><div class="grow"></div><span class="tag ok">Gmail thread synced</span></header>
+      <div class="body grid" style="gap:12px" id="co-thread"></div>
+    </div>
+    <div class="split">
+      <div class="aiblock">
+        <div class="h"><span class="prov a"><i></i>AI analysis</span> Reply classification</div>
+        <p id="co-replyclass"></p>
+        <div class="foot"><span>Categories: buying interest · information request · pricing request · not now · wrong person · not interested · unsubscribe · auto-reply</span></div>
+      </div>
+      <div class="card">
+        <header><h3>Recommended next action</h3><div class="grow"></div><span class="prov a"><i></i>AI</span></header>
+        <div class="body">
+          <p class="small" id="co-nextaction"></p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn pri" onclick="go('review')">Draft the reply</button>
+            <button class="btn" onclick="go('meetings')">Propose a meeting</button>
+            <button class="btn" onclick="toast('Escalated to Commercial Authority')">Escalate to Commercial</button>
+            <button class="btn warn" onclick="toast('Marked: no further contact. Address suppressed permanently.')">No further contact</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="p-history">
+    <div class="card">
+      <header><h3>Everything that happened to this record</h3><div class="grow"></div><button class="btn sm" onclick="toast('Exported to CSV')">Export</button></header>
+      <div class="body"><ul class="tl" id="co-history"></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACTS ============ -->
+<section class="screen" id="s-contacts">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Decision-makers</h1>
+      <p>People, not inboxes. Each contact carries where the address came from, whether it has been checked, and the lawful basis for writing to them.</p>
+    </div>
+    <button class="btn pri" onclick="openModal('m-contact')">Add contact</button>
+  </div>
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Name</th><th>Role</th><th>Company</th><th>Market</th><th>Email</th><th>Verification</th><th>Contactable</th><th>Last touch</th></tr></thead>
+        <tbody id="contacttable"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REVIEW QUEUE ============ -->
+<section class="screen" id="s-review">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Review queue</h1>
+      <p>Nothing reaches a buyer until someone here approves it. Six drafts are waiting: four first-touch, two follow-ups.</p>
+    </div>
+    <div style="display:flex; gap:8px">
+      <button class="btn" onclick="toast('Showing rejected drafts')">Rejected</button>
+      <button class="btn" onclick="toast('Showing approved, not yet sent')">Approved</button>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:300px 1fr; gap:14px; align-items:start" id="reviewgrid">
+    <div class="card">
+      <header><h3>Waiting</h3><div class="grow"></div><span class="count" style="font-size:11px; background:var(--ochre-soft); color:var(--ochre); padding:1px 7px; border-radius:9px">6</span></header>
+      <div id="draftlist"></div>
+    </div>
+
+    <div class="grid" style="gap:14px">
+      <div class="card">
+        <header>
+          <h3 id="dr-title">First-touch — NordFiber Handels GmbH</h3><div class="grow"></div>
+          <span class="prov a"><i></i>AI draft v3</span>
+          <span class="tag due" id="dr-age">Waiting 51h</span>
+        </header>
+        <div class="body">
+          <div class="mail">
+            <div class="hd">
+              <div class="row"><span>From</span><b>rifat.hasan@anwargroup.test</b></div>
+              <div class="row"><span>To</span><b id="dr-to">Lena Brauer &lt;l.brauer@nordfiber.test&gt;</b> <span class="tag">Test recipient</span></div>
+              <div class="row"><span>Subject</span><b id="dr-subject">Consistent-count jute yarn for your PP replacement line</b></div>
+            </div>
+            <div class="bd" id="dr-body"></div>
+          </div>
+          <div class="legendrow" style="margin-top:10px">
+            <span><mark class="why">Highlighted</mark> = a claim traced to a verified source</span>
+            <span><mark class="risk">Highlighted</mark> = commercial language that needs authority</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="grid" style="gap:14px">
+          <div class="aiblock">
+            <div class="h"><span class="prov a"><i></i>AI analysis</span> Why this message, for this company</div>
+            <ul class="small" style="margin:0 0 8px; padding-left:18px" id="dr-why"></ul>
+            <div class="foot"><span>Personalisation drawn from 4 verified facts · no unverified field used</span><button class="btn sm" onclick="toast('Regenerated with a shorter, lead-time-first angle')">Rewrite with different angle</button></div>
+          </div>
+          <div class="card">
+            <header><h3>Your edits</h3><div class="grow"></div><span class="prov h"><i></i>Recorded against your name</span></header>
+            <div class="body">
+              <textarea class="f" placeholder="Edit the message, or leave a note for the drafter. Edits are diffed against the AI version and both are kept."></textarea>
+              <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+                <button class="btn go" onclick="approve()">Approve &amp; create Gmail draft</button>
+                <button class="btn" onclick="toast('Sent back to Nusrat with your note')">Request changes</button>
+                <button class="btn warn" onclick="toast('Rejected. Reason stored in audit trail.')">Reject</button>
+              </div>
+              <p class="tiny muted" style="margin:10px 0 0">Approving writes the message to Gmail <b>Drafts</b> and records your name, the exact text approved and the model version. In this demo, nothing is sent.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid" style="gap:14px; align-content:start">
+          <div class="card">
+            <header><h3>Pre-send checks</h3><div class="grow"></div><span class="tag alert">1 blocking</span></header>
+            <div class="body grid" style="gap:8px" id="dr-checks"></div>
+          </div>
+          <div class="card">
+            <header><h3>Commercial guardrail</h3></header>
+            <div class="body">
+              <p class="small">The draft mentions <b>sample dispatch</b>. Samples, price, MOQ, credit, freight, delivery dates, exclusivity, distributor appointment, warranty and compliance claims are reserved.</p>
+              <div style="display:flex; gap:8px; flex-wrap:wrap">
+                <button class="btn sm" onclick="toast('Sentence removed. Draft now clears the guardrail.')">Remove the sentence</button>
+                <button class="btn sm" onclick="toast('Sent to Commercial Authority (Mahbub Rahman) for release')">Request release</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <header><h3>Send plan</h3></header>
+            <div class="body small grid" style="gap:7px">
+              <div style="display:flex; justify-content:space-between"><span>Send window</span><b>Tue 09:10 CET</b></div>
+              <div style="display:flex; justify-content:space-between"><span>Follow-up 1</span><b>+4 working days</b></div>
+              <div style="display:flex; justify-content:space-between"><span>Follow-up 2</span><b>+11 working days</b></div>
+              <div style="display:flex; justify-content:space-between"><span>Then</span><b>Nurture, quarterly</b></div>
+              <p class="tiny muted" style="margin:3px 0 0">Follow-ups stop the moment a reply arrives. Maximum three touches, then the lead rests.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OUTREACH LOG ============ -->
+<section class="screen" id="s-outreach">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Sent &amp; follow-ups</h1>
+      <p>Approved messages, where each one stands, and what the system will do next if nobody replies.</p>
+    </div>
+    <button class="btn" onclick="toast('Cadence settings opened')">Cadence settings</button>
+  </div>
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Company</th><th>Contact</th><th>Message</th><th>Approved by</th><th>Status</th><th>Opens</th><th>Next step</th><th></th></tr></thead>
+        <tbody id="outreachtable"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="split" style="margin-top:14px">
+    <div class="card">
+      <header><h3>Outreach quality, last 30 days</h3></header>
+      <div class="body grid" style="gap:11px">
+        <div><div style="display:flex; justify-content:space-between" class="small"><span>Messages approved</span><b class="num">47</b></div><div class="bar hi"><span style="width:100%"></span></div></div>
+        <div><div style="display:flex; justify-content:space-between" class="small"><span>Replied</span><b class="num">29 · 62%</b></div><div class="bar hi"><span style="width:62%"></span></div></div>
+        <div><div style="display:flex; justify-content:space-between" class="small"><span>Positive or meeting</span><b class="num">11 · 23%</b></div><div class="bar mid"><span style="width:23%"></span></div></div>
+        <div><div style="display:flex; justify-content:space-between" class="small"><span>Rejected at review</span><b class="num">8 · 15%</b></div><div class="bar lo"><span style="width:15%"></span></div></div>
+        <p class="tiny muted" style="margin:0">Rejections are a health signal, not a failure. The most common reason this month: the draft leaned on an unverified capacity figure.</p>
+      </div>
+    </div>
+    <div class="aiblock">
+      <div class="h"><span class="prov a"><i></i>AI analysis</span> What is working</div>
+      <p>Subject lines naming the buyer's own product line reply at 71%; generic sustainability subjects at 24%. Messages under 140 words reply twice as often as longer ones. Two of three meetings came from threads where the first message asked a single specific question.</p>
+      <div class="foot"><span>Sample: 47 approved messages</span><button class="btn sm" onclick="toast('Draft guidance updated for all new first-touch emails')">Apply to draft guidance</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REPLIES ============ -->
+<section class="screen" id="s-replies">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Replies</h1>
+      <p>Incoming mail, read and sorted by AI, waiting for your call. Four new since yesterday.</p>
+    </div>
+    <button class="btn" onclick="openModal('m-simreply')">Simulate an incoming reply</button>
+  </div>
+
+  <div class="grid" style="grid-template-columns:320px 1fr; gap:14px; align-items:start" id="replygrid">
+    <div class="card">
+      <header><h3>Inbox</h3><div class="grow"></div><span class="tag due">4 new</span></header>
+      <div id="replylist"></div>
+    </div>
+    <div class="grid" style="gap:14px">
+      <div class="card">
+        <header><h3 id="rp-title">Yıldız Tekstil A.Ş. — Selin Aydın</h3><div class="grow"></div><span class="tag" id="rp-when">Today 07:42</span></header>
+        <div class="body">
+          <div class="mail"><div class="hd">
+            <div class="row"><span>From</span><b id="rp-from">Selin Aydın &lt;s.aydin@yildiztekstil.test&gt;</b></div>
+            <div class="row"><span>Subject</span><b id="rp-subject">Re: Consistent 8 lb jute yarn from Chittagong</b></div>
+          </div><div class="bd" id="rp-body"></div></div>
+        </div>
+      </div>
+      <div class="split">
+        <div class="aiblock">
+          <div class="h"><span class="prov a"><i></i>AI analysis</span> Classification</div>
+          <div class="grid" style="gap:8px; margin-bottom:9px">
+            <div style="display:flex; justify-content:space-between"><span>Category</span><b id="rp-cat">Pricing request</b></div>
+            <div style="display:flex; justify-content:space-between"><span>Intent</span><b id="rp-intent">Positive — evaluating supply</b></div>
+            <div style="display:flex; justify-content:space-between"><span>Urgency</span><b id="rp-urg">Reply within 24h</b></div>
+            <div style="display:flex; justify-content:space-between"><span>Confidence</span><b id="rp-conf">High (0.91)</b></div>
+          </div>
+          <p id="rp-reason" class="small"></p>
+          <div class="foot"><span>Wrong call?</span><button class="btn sm" onclick="toast('Reclassified. Correction stored for model review.')">Change category</button></div>
+        </div>
+        <div class="card">
+          <header><h3>Recommended next action</h3><div class="grow"></div><span class="prov a"><i></i>AI</span></header>
+          <div class="body">
+            <p class="small" id="rp-next"></p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <button class="btn pri" onclick="go('review')">Draft the response</button>
+              <button class="btn" onclick="toast('Escalated to Mahbub Rahman, Commercial Authority')">Escalate for pricing</button>
+              <button class="btn" onclick="go('meetings')">Book a call</button>
+              <button class="btn" onclick="toast('Moved to Nurture')">Nurture</button>
+              <button class="btn warn" onclick="toast('No further contact recorded')">No further contact</button>
+            </div>
+            <hr class="sep">
+            <p class="tiny muted" style="margin:0">This reply asks for price and payment terms. TradeReach will not answer either — the draft it prepares acknowledges the request and hands the commercial part to an authorised person.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MEETINGS ============ -->
+<section class="screen" id="s-meetings">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Meetings &amp; tasks</h1>
+      <p>Where conversations turn into commitments — and the short brief that goes into the room with you.</p>
+    </div>
+    <button class="btn pri" onclick="openModal('m-meeting')">Schedule meeting</button>
+  </div>
+  <div class="split">
+    <div class="grid" style="gap:14px">
+      <div class="card">
+        <header><h3>Upcoming</h3></header>
+        <div class="tablewrap"><table>
+          <thead><tr><th>When</th><th>Company</th><th>With</th><th>Purpose</th><th>Prep</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><b>Thu 09:30</b><div class="tiny muted">GMT+6 · Google Meet</div></td><td>Atlas Home Textiles Ltd</td><td>Priya Raman, Head of Sourcing</td><td>Introductory call, jute shopping bags</td><td><span class="tag ok">Brief ready</span></td><td><button class="btn sm" onclick="toast('Brief opened')">Open brief</button></td></tr>
+            <tr><td><b>Mon 14:00</b><div class="tiny muted">GMT+6 · Google Meet</div></td><td>Yıldız Tekstil A.Ş.</td><td>Selin Aydın + Mahbub Rahman (ours)</td><td>Commercial discussion — terms</td><td><span class="tag alert">Commercial Authority must attend</span></td><td><button class="btn sm" onclick="toast('Brief opened')">Open brief</button></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <header><h3>Open tasks</h3><div class="grow"></div><button class="btn sm" onclick="openModal('m-task')">Add task</button></header>
+        <div class="body grid" style="gap:9px">
+          <label class="small" style="display:flex; gap:9px; align-items:flex-start"><input type="checkbox" onchange="toast('Task updated')"><span><b>Confirm Kyoto Green importer licence</b><div class="muted">Blocks qualification · due tomorrow · Nusrat Jahan</div></span></label>
+          <label class="small" style="display:flex; gap:9px; align-items:flex-start"><input type="checkbox" onchange="toast('Task updated')"><span><b>Get EUDR file status from Compliance</b><div class="muted">Blocks 6 EU drafts · due Fri · Rifat Hasan</div></span></label>
+          <label class="small" style="display:flex; gap:9px; align-items:flex-start"><input type="checkbox" onchange="toast('Task updated')"><span><b>Prepare 8 lb sample request for release</b><div class="muted">Needs Commercial Authority · Yıldız Tekstil</div></span></label>
+          <label class="small" style="display:flex; gap:9px; align-items:flex-start"><input type="checkbox" checked onchange="toast('Task updated')"><span style="opacity:.55"><b>Verify NordFiber registry number</b><div class="muted">Done 16 Sep · Tanvir Alam</div></span></label>
+        </div>
+      </div>
+    </div>
+    <div class="aiblock">
+      <div class="h"><span class="prov a"><i></i>AI analysis</span> Meeting brief — Atlas Home Textiles</div>
+      <p>Retail-facing textile importer, 4 UK supermarket accounts, moving own-label shopping bags off polyethylene before the 2027 rules. They already import cotton from Bangladesh, so freight and documentation are familiar ground.</p>
+      <p><b>Ask them:</b> annual bag volume, whether laminated or plain hessian, and who signs off supplier changes.</p>
+      <p><b>Do not commit:</b> price, MOQ, delivery date, exclusivity. Refer commercial questions to Mahbub Rahman.</p>
+      <div class="foot"><span>Drafted from 6 verified facts and the email thread</span><button class="btn sm" onclick="toast('Brief exported as PDF')">Export brief</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AUDIT ============ -->
+<section class="screen" id="s-audit">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Audit trail</h1>
+      <p>Every action that could affect a buyer, a price, or a record: who did it, when, from where, and what the system held before and after.</p>
+    </div>
+    <div style="display:flex; gap:8px">
+      <select class="btn" onchange="toast('Filtered: '+this.value)"><option>All event types</option><option>Approvals</option><option>AI generations</option><option>Field changes</option><option>Connector calls</option><option>Access changes</option></select>
+      <button class="btn" onclick="toast('Exported 2,318 events (CSV, signed)')">Export</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Time</th><th>Actor</th><th>Event</th><th>Object</th><th>Detail</th><th>IP</th></tr></thead>
+        <tbody id="audittable"></tbody>
+      </table>
+    </div>
+  </div>
+  <p class="tiny muted" style="margin-top:10px">Audit rows are append-only. AI events store the model name, prompt version and token cost; approval events store a hash of the exact text approved, so a sent message can always be matched to what a person signed off.</p>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section class="screen" id="s-settings">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Settings &amp; access</h1>
+      <p>Who can do what, how the scoring is weighted, and how the system connects to the outside world.</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="on" onclick="cotab(this,'st-users')">Users &amp; roles</button>
+    <button onclick="cotab(this,'st-score')">Scoring</button>
+    <button onclick="cotab(this,'st-ai')">AI workflow</button>
+    <button onclick="cotab(this,'st-conn')">Connectors</button>
+    <button onclick="cotab(this,'st-guard')">Commercial guardrails</button>
+  </div>
+
+  <div class="pane on" id="st-users">
+    <div class="split">
+      <div class="card">
+        <header><h3>Team</h3><div class="grow"></div><button class="btn sm" onclick="toast('Invitation sent')">Invite user</button></header>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Name</th><th>Role</th><th>Markets</th><th>Can approve</th><th>Can release terms</th><th>Last seen</th></tr></thead>
+          <tbody>
+            <tr><td><b>Rifat Hasan</b><div class="tiny muted">rifat.hasan@anwargroup.test</div></td><td>Export Manager</td><td>Türkiye, Germany, UK</td><td><span class="tag ok">Yes</span></td><td><span class="tag">No</span></td><td>Now</td></tr>
+            <tr><td><b>Nusrat Jahan</b><div class="tiny muted">nusrat.jahan@anwargroup.test</div></td><td>Export Executive</td><td>Japan, UAE</td><td><span class="tag">No</span></td><td><span class="tag">No</span></td><td>32m ago</td></tr>
+            <tr><td><b>Tanvir Alam</b><div class="tiny muted">tanvir.alam@anwargroup.test</div></td><td>Export Executive</td><td>Brazil, Egypt</td><td><span class="tag">No</span></td><td><span class="tag">No</span></td><td>Yesterday</td></tr>
+            <tr><td><b>Mahbub Rahman</b><div class="tiny muted">mahbub.rahman@anwargroup.test</div></td><td>Commercial Authority</td><td>All</td><td><span class="tag ok">Yes</span></td><td><span class="tag ok">Yes</span></td><td>2h ago</td></tr>
+            <tr><td><b>Audit (internal)</b><div class="tiny muted">audit@anwargroup.test</div></td><td>Read-only Auditor</td><td>All</td><td><span class="tag">No</span></td><td><span class="tag">No</span></td><td>4d ago</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <header><h3>What each role can do</h3></header>
+        <div class="body grid" style="gap:11px">
+          <div class="small"><b>Export Executive</b><div class="muted">Add companies, run research, request AI drafts, submit for approval. Cannot approve or send.</div></div>
+          <div class="small"><b>Export Manager</b><div class="muted">Everything above, plus approve outreach, move pipeline stages, disqualify, reassign owners.</div></div>
+          <div class="small"><b>Commercial Authority</b><div class="muted">Releases anything touching price, payment, credit, MOQ, freight, samples, delivery, exclusivity, distributor appointment, warranty or compliance.</div></div>
+          <div class="small"><b>Read-only Auditor</b><div class="muted">Reads and exports records and the audit trail. Writes nothing.</div></div>
+          <hr class="sep" style="margin:2px 0">
+          <div class="small"><b>Data boundaries</b><div class="muted">Executives see only their assigned markets. Every access attempt outside scope is logged and refused.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="st-score">
+    <div class="split">
+      <div class="card">
+        <header><h3>Fit scoring weights — jute yarn</h3><div class="grow"></div><button class="btn sm" onclick="toast('Weights saved. 41 scores recalculated.')">Save</button></header>
+        <div class="body grid" style="gap:13px" id="weights"></div>
+        <div class="body" style="border-top:1px solid var(--line-2)"><p class="tiny muted" style="margin:0">Changing weights recalculates every qualified company and records the change. Historical scores are kept so a past decision can still be explained.</p></div>
+      </div>
+      <div class="card">
+        <header><h3>Thresholds</h3></header>
+        <div class="body grid" style="gap:11px">
+          <div class="small"><b>80+</b> <span class="muted">Recommend for outreach</span></div>
+          <div class="small"><b>60–79</b> <span class="muted">Recommend with a named gap to close first</span></div>
+          <div class="small"><b>40–59</b> <span class="muted">Nurture — revisit next quarter</span></div>
+          <div class="small"><b>Below 40</b> <span class="muted">Recommend disqualification with a stated reason</span></div>
+          <hr class="sep" style="margin:2px 0">
+          <p class="tiny muted" style="margin:0">Thresholds trigger a recommendation only. No company advances, and none is discarded, without a person acting.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="st-ai">
+    <div class="card" style="margin-bottom:14px">
+      <header><h3>How AI is used, step by step</h3><div class="grow"></div><span class="tiny muted">Each step names its model, its inputs and who checks the output</span></header>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Step</th><th>What it does</th><th>Inputs</th><th>Output treated as</th><th>Checked by</th></tr></thead>
+        <tbody>
+          <tr><td>Research summary</td><td>Reads site, registry and trade sources; writes a neutral profile</td><td>Crawled pages, registry record</td><td><span class="prov a"><i></i>AI</span></td><td>Owner accepts per field</td></tr>
+          <tr><td>Gap detection</td><td>Names the facts missing for qualification</td><td>Company record + criteria</td><td><span class="prov a"><i></i>AI</span></td><td>Becomes a task</td></tr>
+          <tr><td>Suitability call</td><td>Recommends proceed, research more, nurture or disqualify</td><td>Verified fields only</td><td><span class="prov a"><i></i>AI</span></td><td>Export Manager</td></tr>
+          <tr><td>Prioritisation</td><td>Ranks qualified companies for the week</td><td>Scores, market priority, season</td><td><span class="prov a"><i></i>AI</span></td><td>Manager may override with a reason</td></tr>
+          <tr><td>Decision-maker pick</td><td>Chooses the right person and a fallback</td><td>Contacts, roles, org signals</td><td><span class="prov a"><i></i>AI</span></td><td>Owner selects primary</td></tr>
+          <tr><td>Opportunity summary</td><td>Three lines on why this buyer, for this product</td><td>Verified fields, thread</td><td><span class="prov a"><i></i>AI</span></td><td>Shown in review</td></tr>
+          <tr><td>Outreach draft</td><td>Writes a personalised first message</td><td>Verified facts + product sheet</td><td><span class="prov a"><i></i>AI</span></td><td><span class="prov h"><i></i>Approver</span></td></tr>
+          <tr><td>Follow-up draft</td><td>Writes touch 2 and 3 without repeating touch 1</td><td>Thread history</td><td><span class="prov a"><i></i>AI</span></td><td><span class="prov h"><i></i>Approver</span></td></tr>
+          <tr><td>Reply classification</td><td>Sorts incoming mail into eight categories</td><td>Reply text</td><td><span class="prov a"><i></i>AI</span></td><td>Correctable in one click</td></tr>
+          <tr><td>Next-action call</td><td>Proposes the next move and who must do it</td><td>Classification + stage</td><td><span class="prov a"><i></i>AI</span></td><td>Owner decides</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <header><h3>Model settings</h3></header>
+        <div class="body">
+          <label class="f">Drafting model</label><select class="f"><option>Claude Sonnet — balanced, default</option><option>Claude Opus — long research runs</option><option>Claude Haiku — classification only</option></select>
+          <label class="f">Classification model</label><select class="f"><option>Claude Haiku — fast, cheap</option><option>Claude Sonnet</option></select>
+          <label class="f">Temperature (drafting)</label><input class="f" type="range" min="0" max="10" value="4" oninput="toast('Temperature '+(this.value/10))">
+          <label class="f">Monthly AI spend cap</label><input class="f" value="USD 120 — alert at 80%">
+          <p class="tiny muted" style="margin:12px 0 0">Keys are read from server environment variables. They are never sent to the browser, never written to the repository, and rotate on a 90-day reminder.</p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Refusals and limits</h3></header>
+        <div class="body grid" style="gap:10px">
+          <div class="small"><b>AI may not fill a verified field.</b><div class="muted">It can propose a value; a person promotes it.</div></div>
+          <div class="small"><b>AI may not send.</b><div class="muted">The send path requires an approval record that only a human can create.</div></div>
+          <div class="small"><b>AI may not quote commercial terms.</b><div class="muted">Reserved terms are stripped from the prompt context entirely.</div></div>
+          <div class="small"><b>Low confidence surfaces.</b><div class="muted">Below 0.6, the output is labelled uncertain and the task is routed to a person instead.</div></div>
+          <div class="small"><b>Nothing is invented.</b><div class="muted">A claim without a source is dropped from the draft and listed as a gap.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="st-conn">
+    <div class="split">
+      <div class="card">
+        <header><h3>Connected services</h3></header>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Service</th><th>Scope</th><th>Auth</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><b>Gmail</b></td><td><code>gmail.compose</code> — create drafts only</td><td>OAuth 2.0, per user</td><td><span class="tag ok">Connected</span></td><td><button class="btn sm" onclick="toast('Re-authorised')">Reauthorise</button></td></tr>
+            <tr><td><b>Google Calendar</b></td><td><code>calendar.events</code></td><td>OAuth 2.0, per user</td><td><span class="tag ok">Connected</span></td><td><button class="btn sm" onclick="toast('Re-authorised')">Reauthorise</button></td></tr>
+            <tr><td><b>Registry lookup</b></td><td>Company number, status, address</td><td>Server API key</td><td><span class="tag ok">Connected</span></td><td><button class="btn sm" onclick="toast('Key rotated')">Rotate key</button></td></tr>
+            <tr><td><b>UN Comtrade</b></td><td>Import volumes by HS code</td><td>Server API key</td><td><span class="tag">Sandbox</span></td><td><button class="btn sm" onclick="toast('Upgrade requested')">Upgrade</button></td></tr>
+            <tr><td><b>Outbound sending</b></td><td>Disabled for the assignment</td><td>—</td><td><span class="tag alert">Off</span></td><td><button class="btn sm" disabled style="opacity:.5">Locked</button></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <header><h3>Safety rails on the mail connector</h3></header>
+        <div class="body grid" style="gap:10px">
+          <div class="small"><b>Draft-only scope.</b><div class="muted">The OAuth grant does not include send. Even a bug cannot mail a real buyer.</div></div>
+          <div class="small"><b>Test-domain allowlist.</b><div class="muted">Recipients must end in <code>.test</code>. Anything else is refused and logged.</div></div>
+          <div class="small"><b>Per-user tokens.</b><div class="muted">Drafts appear in the approver's own mailbox, so ownership is obvious.</div></div>
+          <div class="small"><b>Retry with backoff.</b><div class="muted">Connector failures queue and surface as a visible error, never a silent drop.</div></div>
+          <div class="small"><b>Unsubscribe is permanent.</b><div class="muted">A suppressed address cannot be re-added by import or by AI.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" id="st-guard">
+    <div class="split">
+      <div class="card">
+        <header><h3>Reserved commercial matters</h3><div class="grow"></div><span class="tag alert">Blocks outreach</span></header>
+        <div class="body">
+          <p class="small">A draft containing any of these is held until a Commercial Authority releases it. Detection runs on meaning, not keywords, so "what would a container land at" is caught as pricing.</p>
+          <div style="display:flex; gap:7px; flex-wrap:wrap" id="reserved"></div>
+          <hr class="sep">
+          <label class="f">Add a reserved matter</label>
+          <div style="display:flex; gap:8px"><input class="f" placeholder="e.g. packaging redesign"><button class="btn" onclick="toast('Added to reserved matters')">Add</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Standard refusal language</h3></header>
+        <div class="body">
+          <p class="small muted">Used whenever a buyer asks for something reserved, so the answer is consistent and nobody improvises.</p>
+          <div class="mail"><div class="bd" style="font-size:13px">Thank you for asking. Commercial terms for this product are set by our export desk rather than by me, so I have passed your question to Mahbub Rahman, who looks after pricing and terms for Türkiye. He will write to you directly this week.
+
+In the meantime, may I send the technical specification for the 8 lb count so your team can check it against your machine settings?</div></div>
+          <button class="btn sm" style="margin-top:10px" onclick="toast('Refusal template updated')">Edit template</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BUILD NOTES ============ -->
+<section class="screen" id="s-spec">
+  <div class="pagehead">
+    <div class="grow">
+      <h1>Build notes</h1>
+      <p>The engineering view behind this mock: stack, data model, and where each requirement in the brief lives in the product.</p>
+    </div>
+  </div>
+  <div class="split">
+    <div class="grid" style="gap:14px">
+      <div class="card">
+        <header><h3>Proposed stack</h3></header>
+        <div class="body"><dl class="kv">
+          <dt>Frontend</dt><dd>Next.js (App Router) + TypeScript + Tailwind</dd>
+          <dt>Backend</dt><dd>Next.js route handlers + a small job runner for research and cadence</dd>
+          <dt>Database</dt><dd>PostgreSQL via Prisma; row-level scoping by market and role</dd>
+          <dt>Auth</dt><dd>Auth.js with Google Workspace SSO; role claims in the session</dd>
+          <dt>AI</dt><dd>Anthropic API, server-side only; structured JSON outputs, schema-validated</dd>
+          <dt>Connectors</dt><dd>Gmail + Calendar over OAuth, <code>compose</code> scope only</dd>
+          <dt>Queue</dt><dd>Postgres-backed jobs — research runs, follow-up scheduling, reply polling</dd>
+          <dt>Secrets</dt><dd>Environment variables, <code>.env.example</code> committed, real keys never</dd>
+          <dt>Tests</dt><dd>Vitest on scoring and guardrails; Playwright on the ten-step demo journey</dd>
+        </dl></div>
+      </div>
+      <div class="card">
+        <header><h3>Core tables</h3></header>
+        <div class="body small">
+          <p><code>product</code> · <code>market</code> · <code>company</code> · <code>company_field</code> (value + provenance + source_id + confirmed_by) · <code>source</code> · <code>contact</code> · <code>qualification</code> · <code>score_run</code> · <code>ai_run</code> (model, prompt version, tokens, cost) · <code>message</code> (ai_version, human_version, approved_by, approved_hash) · <code>thread</code> · <code>reply</code> (category, confidence) · <code>task</code> · <code>meeting</code> · <code>audit_event</code> · <code>user</code> · <code>suppression</code></p>
+          <p class="muted" style="margin:0">Provenance is a column on every fact, not a separate table — so no field can exist without one.</p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Known limits of this mock</h3></header>
+        <div class="body small grid" style="gap:6px">
+          <div>Data is fixed and in-memory; filters demonstrate behaviour rather than query a database.</div>
+          <div>Gmail, registry and trade lookups are represented, not live.</div>
+          <div>Reply classification is shown with pre-computed results; the model call happens server-side in the real build.</div>
+          <div>Scoring weights display correctly but do not recompute the sample rows.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <header><h3>Requirement coverage</h3><div class="grow"></div><span class="tiny muted">Brief section → where it is</span></header>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Asked for</th><th>Where</th></tr></thead>
+        <tbody id="coverage"></tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+    </div><!-- /wrap -->
+  </main>
+</div><!-- /app -->
+
+<!-- ============ MODALS ============ -->
+<div class="modal" id="m-company"><div class="sheet">
+  <header><h3>Add a company</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <div class="frow"><div><label class="f">Company name</label><input class="f" placeholder="Yıldız Tekstil A.Ş."></div><div><label class="f">Website</label><input class="f" placeholder="yildiztekstil.test"></div></div>
+    <div class="frow"><div><label class="f">Market</label><select class="f"><option>Türkiye</option><option>Germany</option><option>Japan</option><option>UAE</option><option>United Kingdom</option><option>Brazil</option><option>Egypt</option></select></div><div><label class="f">Type</label><select class="f"><option>Importer</option><option>Distributor</option><option>Converter / manufacturer</option><option>Retail buyer</option><option>Trading house</option></select></div></div>
+    <div class="frow"><div><label class="f">Product to promote</label><select class="f"><option>Jute yarn</option><option>Woven jute bags</option><option>Knit garments</option><option>Ceramic tableware</option></select></div><div><label class="f">Owner</label><select class="f"><option>Rifat Hasan</option><option>Nusrat Jahan</option><option>Tanvir Alam</option></select></div></div>
+    <label class="f" style="display:flex; gap:8px; align-items:center"><input type="checkbox" checked> Run AI research as soon as it is saved</label>
+    <p class="tiny muted" style="margin-top:10px">Everything entered here is stored as unverified until a source backs it.</p>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Company added. Research run queued.')">Save company</button></footer>
+</div></div>
+
+<div class="modal" id="m-research"><div class="sheet">
+  <header><h3>Run AI research</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <p class="small">The run reads the company website, the public registry and trade-flow data, then writes a profile, lists what is missing, and proposes a fit score. Nothing it writes is treated as verified.</p>
+    <label class="f">Depth</label>
+    <select class="f"><option>Standard — site, registry, trade flows (~45s)</option><option>Deep — plus news, LinkedIn signals, competitor supply (~3 min)</option><option>Refresh — re-check changed fields only (~15s)</option></select>
+    <label class="f">Sources to include</label>
+    <div class="grid" style="gap:6px">
+      <label class="small" style="display:flex; gap:8px"><input type="checkbox" checked> Company website and product pages</label>
+      <label class="small" style="display:flex; gap:8px"><input type="checkbox" checked> National company registry</label>
+      <label class="small" style="display:flex; gap:8px"><input type="checkbox" checked> UN Comtrade import flows</label>
+      <label class="small" style="display:flex; gap:8px"><input type="checkbox" checked> Sanctions and denied-party screening</label>
+      <label class="small" style="display:flex; gap:8px"><input type="checkbox"> Trade press and news</label>
+    </div>
+    <p class="tiny muted" style="margin-top:12px">Estimated cost 0.03 USD. Model, prompt version and cost are written to the audit trail.</p>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Research running — you will be notified when the profile is ready')">Start research</button></footer>
+</div></div>
+
+<div class="modal" id="m-disq"><div class="sheet">
+  <header><h3>Disqualify this company</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <label class="f">Reason</label>
+    <select class="f"><option>Wrong product category</option><option>Too small for our minimum run</option><option>Already supplied by a group company</option><option>Failed screening</option><option>No decision-maker reachable</option><option>Asked not to be contacted</option><option>Other</option></select>
+    <label class="f">Note for the record</label><textarea class="f" placeholder="One line explaining the call, so the next person does not repeat the research."></textarea>
+    <label class="f" style="display:flex; gap:8px; align-items:center"><input type="checkbox"> Also suppress this domain permanently — no further contact</label>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn warn" onclick="closeModal();toast('Disqualified. Reason recorded in the audit trail.')">Disqualify</button></footer>
+</div></div>
+
+<div class="modal" id="m-source"><div class="sheet">
+  <header><h3>Add a source</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <label class="f">URL or document</label><input class="f" placeholder="https://…  or upload a PDF">
+    <label class="f">What it supports</label><select class="f"><option>Company is an importer</option><option>Product range</option><option>Volume or capacity</option><option>Certification</option><option>Contact details</option><option>Ownership or registration</option></select>
+    <label class="f">Quality</label><select class="f"><option>Primary — registry, customs, the company itself</option><option>Secondary — trade press, directory</option><option>Weak — aggregator, unattributed</option></select>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Source added. Linked fields can now be verified.')">Add source</button></footer>
+</div></div>
+
+<div class="modal" id="m-contact"><div class="sheet">
+  <header><h3>Add a decision-maker</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <div class="frow"><div><label class="f">Name</label><input class="f" placeholder="Selin Aydın"></div><div><label class="f">Role</label><input class="f" placeholder="Sourcing Manager"></div></div>
+    <div class="frow"><div><label class="f">Email</label><input class="f" placeholder="s.aydin@company.test"></div><div><label class="f">Where it came from</label><select class="f"><option>Company website</option><option>Trade fair card</option><option>Introduced by a colleague</option><option>Directory listing</option><option>Guessed pattern — unverified</option></select></div></div>
+    <label class="f">Lawful basis for contact</label><select class="f"><option>Legitimate interest — B2B, relevant product</option><option>Consent given at trade fair</option><option>Existing business relationship</option></select>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Contact added as unverified until the address is checked')">Save contact</button></footer>
+</div></div>
+
+<div class="modal" id="m-product"><div class="sheet">
+  <header><h3>Add a product</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <div class="frow"><div><label class="f">Product name</label><input class="f" placeholder="Woven jute bags"></div><div><label class="f">HS code</label><input class="f" placeholder="6305.10"></div></div>
+    <label class="f">Certifications</label><input class="f" placeholder="OEKO-TEX, ISO 9001">
+    <div class="frow"><div><label class="f">Monthly capacity</label><input class="f" placeholder="920 MT"></div><div><label class="f">Lead time</label><input class="f" placeholder="28–35 days ex-Chittagong"></div></div>
+    <label class="f">What AI may say about this product</label><textarea class="f" placeholder="Only facts entered here can appear in a draft. Leave price, MOQ and terms out."></textarea>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Product saved')">Save product</button></footer>
+</div></div>
+
+<div class="modal" id="m-market"><div class="sheet">
+  <header><h3>Add a target market</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <div class="frow"><div><label class="f">Country</label><input class="f" placeholder="Poland"></div><div><label class="f">Product focus</label><select class="f"><option>Jute yarn</option><option>Woven jute bags</option><option>Knit garments</option><option>Ceramic tableware</option></select></div></div>
+    <div class="frow"><div><label class="f">Priority</label><select class="f"><option>High</option><option>Medium</option><option>Watch</option></select></div><div><label class="f">Weekly outreach cap</label><input class="f" value="12"></div></div>
+    <label class="f" style="display:flex; gap:8px; align-items:center"><input type="checkbox" checked> Ask AI to size the market and find candidate importers</label>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Market added. Candidate sourcing queued.')">Save market</button></footer>
+</div></div>
+
+<div class="modal" id="m-simreply"><div class="sheet">
+  <header><h3>Simulate an incoming reply</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <p class="small">For testing the classification and next-action steps without contacting anyone. Simulated replies are tagged as test data everywhere they appear.</p>
+    <label class="f">Thread</label><select class="f"><option>NordFiber Handels GmbH — Lena Brauer</option><option>Sahara Packaging LLC — Omar Farouk</option><option>Kyoto Green Materials — Aiko Tanaka</option></select>
+    <label class="f">Reply text</label><textarea class="f" style="min-height:110px">Thanks for reaching out. We are reviewing alternatives to PP liners this quarter. Could you send the technical spec for the 8 lb count, and let us know your price per tonne CIF Hamburg?</textarea>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Reply received. AI classified it as: pricing request — escalate.')">Deliver reply</button></footer>
+</div></div>
+
+<div class="modal" id="m-meeting"><div class="sheet">
+  <header><h3>Schedule a meeting</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <label class="f">Company</label><select class="f"><option>Yıldız Tekstil A.Ş.</option><option>Atlas Home Textiles Ltd</option><option>NordFiber Handels GmbH</option></select>
+    <div class="frow"><div><label class="f">Date</label><input class="f" type="date" value="2026-09-24"></div><div><label class="f">Time (their timezone)</label><input class="f" type="time" value="11:00"></div></div>
+    <label class="f">Purpose</label><select class="f"><option>Introductory call</option><option>Technical specification review</option><option>Commercial discussion — requires Commercial Authority</option><option>Factory visit planning</option></select>
+    <label class="f" style="display:flex; gap:8px; align-items:center"><input type="checkbox" checked> Ask AI to prepare a meeting brief from verified facts and the thread</label>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Calendar invite drafted. Brief will be ready in a minute.')">Create invite</button></footer>
+</div></div>
+
+<div class="modal" id="m-task"><div class="sheet">
+  <header><h3>Add a task</h3><div class="grow" style="flex:1"></div><button class="btn sm" onclick="closeModal()">Close</button></header>
+  <div class="body">
+    <label class="f">What needs doing</label><input class="f" placeholder="Confirm importer licence number">
+    <div class="frow"><div><label class="f">Assign to</label><select class="f"><option>Rifat Hasan</option><option>Nusrat Jahan</option><option>Tanvir Alam</option><option>Mahbub Rahman</option></select></div><div><label class="f">Due</label><input class="f" type="date" value="2026-09-22"></div></div>
+    <label class="f" style="display:flex; gap:8px; align-items:center"><input type="checkbox"> This blocks the company from advancing a stage</label>
+  </div>
+  <footer><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="closeModal();toast('Task created')">Save task</button></footer>
+</div></div>
+
+<div id="toast"></div>
+<script>
+/* ---------------- data ---------------- */
+const COMPANIES = [
+ {id:'yildiz', name:'Yıldız Tekstil A.Ş.', market:'Türkiye', type:'Converter', score:91, stage:'Commercial discussion', dm:'Selin Aydın', owner:'Rifat Hasan', gaps:0, next:'Escalate pricing question to Commercial Authority', tone:'hot'},
+ {id:'nordfiber', name:'NordFiber Handels GmbH', market:'Germany', type:'Importer', score:87, stage:'Outreach', dm:'Lena Brauer', owner:'Rifat Hasan', gaps:0, next:'Approve first-touch draft', tone:'hot'},
+ {id:'atlas', name:'Atlas Home Textiles Ltd', market:'United Kingdom', type:'Retail buyer', score:84, stage:'Meeting', dm:'Priya Raman', owner:'Rifat Hasan', gaps:1, next:'Prepare Thursday call brief', tone:'hot'},
+ {id:'kyoto', name:'Kyoto Green Materials K.K.', market:'Japan', type:'Distributor', score:78, stage:'Qualification', dm:'Aiko Tanaka', owner:'Nusrat Jahan', gaps:2, next:'Confirm importer licence and volumes', tone:'warm'},
+ {id:'sahara', name:'Sahara Packaging LLC', market:'UAE', type:'Converter', score:66, stage:'Follow-up', dm:'Omar Farouk', owner:'Nusrat Jahan', gaps:1, next:'Follow-up 2 due today', tone:'warm'},
+ {id:'bosphorus', name:'Bosphorus Ambalaj San.', market:'Türkiye', type:'Converter', score:73, stage:'Follow-up', dm:'Emre Koç', owner:'Rifat Hasan', gaps:0, next:'Follow-up 1 due tomorrow', tone:'warm'},
+ {id:'verde', name:'Verde Embalagens Ltda', market:'Brazil', type:'Distributor', score:58, stage:'Nurture', dm:'Camila Souza', owner:'Tanvir Alam', gaps:2, next:'Quarterly nurture touch in Nov', tone:'cold'},
+ {id:'hansa', name:'Hansa Agrar Handel', market:'Germany', type:'Trading house', score:81, stage:'Contact identification', dm:'— not yet found', owner:'Rifat Hasan', gaps:1, next:'Find a named sourcing contact', tone:'warm'},
+ {id:'nileco', name:'NileCo Trading', market:'Egypt', type:'Importer', score:39, stage:'Disqualified', dm:'—', owner:'Tanvir Alam', gaps:3, next:'Closed — export licence unverifiable', tone:'risk'},
+ {id:'osaka', name:'Osaka Agri Textiles', market:'Japan', type:'Converter', score:76, stage:'Reply', dm:'Kenji Mori', owner:'Nusrat Jahan', gaps:0, next:'Reply asks for spec sheet — draft response', tone:'hot'},
+ {id:'gulfpack', name:'Gulf Pack Industries', market:'UAE', type:'Converter', score:52, stage:'Research', dm:'—', owner:'Nusrat Jahan', gaps:3, next:'Research incomplete — 3 fields missing', tone:'cold'},
+ {id:'thames', name:'Thames Eco Supply Co.', market:'United Kingdom', type:'Distributor', score:69, stage:'Qualification', dm:'Harriet Doyle', owner:'Rifat Hasan', gaps:1, next:'Confirm annual volume claim', tone:'warm'}
+];
+
+const STAGES = ['Market selection','Company research','Qualification','Contact identification','Outreach','Follow-up','Reply','Meeting','Commercial discussion'];
+const STAGE_LEADS = {
+ 'Market selection':[['Poland — jute bags','Sizing in progress','cold'],['Vietnam — jute yarn','Watchlist','cold']],
+ 'Company research':[['Gulf Pack Industries','3 fields missing','cold'],['Adriatic Fibres d.o.o.','Research running','cold']],
+ 'Qualification':[['Kyoto Green Materials','2 gaps · score 78','warm'],['Thames Eco Supply','1 gap · score 69','warm']],
+ 'Contact identification':[['Hansa Agrar Handel','No named contact yet','warm']],
+ 'Outreach':[['NordFiber Handels','Draft waiting 51h','warm'],['Baltic Sack AB','Approved, sends Tue','hot']],
+ 'Follow-up':[['Sahara Packaging','Follow-up 2 due today','warm'],['Bosphorus Ambalaj','Opened twice, no reply','warm']],
+ 'Reply':[['Osaka Agri Textiles','Asked for spec sheet','hot'],['Milano Juta S.r.l.','Not now — Q1','cold']],
+ 'Meeting':[['Atlas Home Textiles','Thu 09:30 · brief ready','hot']],
+ 'Commercial discussion':[['Yıldız Tekstil A.Ş.','Terms — Commercial Authority','hot']]
+};
+const LANES = [['Needs more research',7,'AI listed a missing fact that blocks qualification'],['Nurturing',12,'Right buyer, wrong quarter'],['Awaiting approval',6,'Draft written, no approver yet'],['Awaiting commercial release',3,'Message touches price or terms'],['Disqualified',19,'Reason recorded'],['No further contact',4,'Asked us to stop — permanent'],['Closed',5,'Won, lost or dormant']];
+
+const FUNNEL = [['Researched',128],['Qualified',41],['Contacted',23],['Replied',14],['Meeting',5],['Commercial',2]];
+const MARKETS_BAR = [['Türkiye',34],['Germany',27],['Japan',19],['United Kingdom',16],['UAE',14],['Brazil',9],['Egypt',9]];
+
+const PRODUCTS = [
+ ['Jute yarn','5307.10','OEKO-TEX, ISO 9001','920 MT','Türkiye, Germany, Japan, UK',41],
+ ['Woven jute bags','6305.10','OEKO-TEX, BSCI','1.4M pcs','UK, Germany, UAE',33],
+ ['Knit garments','6109.10','BSCI, ISO 14001','2.1M pcs','Germany, UK, Brazil',28],
+ ['Ceramic tableware','6912.00','LFGB, FDA','480 MT','UAE, Japan, Brazil',26]
+];
+const MARKET_ROWS = [
+ ['Türkiye','Jute yarn','48,200 MT/yr','0% GSP','High',34,'Active'],
+ ['Germany','Jute yarn, bags','31,600 MT/yr','0% EBA','High',27,'Active'],
+ ['Japan','Jute yarn, tableware','12,900 MT/yr','0% GSP','High',19,'Active'],
+ ['United Kingdom','Bags, garments','22,400 MT/yr','0% DCTS','Medium',16,'Active'],
+ ['UAE','Bags, tableware','9,800 MT/yr','5% GCC','Medium',14,'Under review'],
+ ['Brazil','Garments, tableware','6,200 MT/yr','18% MFN','Watch',9,'Watchlist'],
+ ['Egypt','Jute yarn','4,100 MT/yr','Licence required','Watch',9,'Paused']
+];
+const CONTACTS = [
+ ['Selin Aydın','Sourcing Manager','Yıldız Tekstil A.Ş.','Türkiye','s.aydin@yildiztekstil.test','v','Yes','Replied 2h ago'],
+ ['Lena Brauer','Head of Procurement','NordFiber Handels GmbH','Germany','l.brauer@nordfiber.test','v','Yes','Draft pending'],
+ ['Priya Raman','Head of Sourcing','Atlas Home Textiles Ltd','UK','p.raman@atlastextiles.test','v','Yes','Meeting Thu'],
+ ['Aiko Tanaka','Import Division Lead','Kyoto Green Materials K.K.','Japan','a.tanaka@kyotogreen.test','u','Blocked — unverified','Never'],
+ ['Omar Farouk','Purchasing Officer','Sahara Packaging LLC','UAE','o.farouk@saharapack.test','v','Yes','Sent 7d ago'],
+ ['Kenji Mori','Materials Buyer','Osaka Agri Textiles','Japan','k.mori@osakaagri.test','v','Yes','Replied 1d ago'],
+ ['Camila Souza','Commercial Director','Verde Embalagens Ltda','Brazil','c.souza@verdeemb.test','u','Nurture only','Sent 74d ago'],
+ ['Harriet Doyle','Buying Manager','Thames Eco Supply Co.','UK','h.doyle@thameseco.test','u','Blocked — unverified','Never']
+];
+const OUTREACH = [
+ ['Yıldız Tekstil A.Ş.','Selin Aydın','First-touch · consistency angle','Rifat Hasan','Replied','4','Escalated for terms'],
+ ['Osaka Agri Textiles','Kenji Mori','First-touch · agri-textile angle','Rifat Hasan','Replied','3','Draft spec response'],
+ ['Sahara Packaging LLC','Omar Farouk','First-touch · lead time angle','Rifat Hasan','No reply','2','Follow-up 2 today'],
+ ['Bosphorus Ambalaj San.','Emre Koç','First-touch · Turkish opener','Rifat Hasan','Opened','2','Follow-up 1 tomorrow'],
+ ['Atlas Home Textiles Ltd','Priya Raman','Follow-up 1 · single question','Rifat Hasan','Replied','5','Meeting booked'],
+ ['Baltic Sack AB','Nils Ek','First-touch · EUDR angle','Mahbub Rahman','Approved','—','Sends Tue 09:10'],
+ ['Milano Juta S.r.l.','Giulia Ferri','First-touch · seasonal angle','Rifat Hasan','Replied','1','Nurture until Q1'],
+ ['Verde Embalagens Ltda','Camila Souza','Nurture touch · quarterly','Rifat Hasan','No reply','0','Nurture Nov'],
+ ['Thames Eco Supply Co.','Harriet Doyle','Held','—','Blocked','—','Contact unverified']
+];
+const AUDIT = [
+ ['09:12:04','Rifat Hasan','Approved outreach','Yıldız Tekstil · msg #412','Approved v3, 2 edits from AI draft · hash 9f3c…a1','103.21.x.x'],
+ ['09:12:05','System','Gmail draft created','Yıldız Tekstil · msg #412','gmail.compose · draft id 18f2… · recipient on .test allowlist','—'],
+ ['08:47:31','AI (haiku-class)','Reply classified','Yıldız Tekstil · reply #88','pricing request · confidence 0.91 · 812 tokens · 0.0004 USD','—'],
+ ['08:47:29','System','Reply ingested','Yıldız Tekstil · thread #37','Gmail poll, 1 new message','—'],
+ ['07:02:18','AI (sonnet-class)','Research run','Kyoto Green Materials','14 pages read · 6 sources kept · 2 gaps raised · 0.031 USD','—'],
+ ['06:40:02','AI (sonnet-class)','Weekly read-out generated','Workspace','prompt v7 · 4,210 tokens','—'],
+ ['Yesterday 17:20','Mahbub Rahman','Commercial release granted','Baltic Sack AB · msg #409','Released: sample dispatch mention','103.21.x.x'],
+ ['Yesterday 16:55','Rifat Hasan','Field verified','NordFiber · registry number','unverified → verified · source: Handelsregister','103.21.x.x'],
+ ['Yesterday 16:02','Nusrat Jahan','Draft submitted for approval','Sahara Packaging · msg #407','AI v2, 1 human edit','103.21.x.x'],
+ ['Yesterday 11:31','Tanvir Alam','Company disqualified','NileCo Trading','Reason: export licence unverifiable · domain suppressed','103.21.x.x'],
+ ['Yesterday 10:04','System','Access refused','Tanvir Alam → Türkiye records','Out of assigned market scope','103.21.x.x'],
+ ['16 Sep 14:22','Rifat Hasan','Scoring weights changed','Jute yarn model','Import evidence 25 → 30 · 41 scores recalculated','103.21.x.x']
+];
+const WEIGHTS = [['Imports this product category already',30],['Buys from Bangladesh or South Asia today',20],['Volume fits our monthly capacity',15],['Certification requirements we already meet',15],['Named decision-maker identified',10],['Market priority',10]];
+const RESERVED = ['Price','Payment terms','Credit','MOQ','Freight','Delivery date','Samples','Exclusivity','Distributor appointment','Warranty','Technical compliance claims','Discounts','Rebates','Contract length'];
+const COVERAGE = [
+ ['Products promoted','Products'],['Target countries and markets','Target markets'],
+ ['Potential export customers','Companies'],['Research and supporting sources','Company → Research &amp; sources'],
+ ['Lead qualification and prioritisation','Company → Qualification'],['Decision-maker information','Decision-makers; Company → People'],
+ ['Personalised outreach','Review queue'],['Human review and approval','Review queue'],
+ ['Email drafts via connector','Review queue → Gmail draft; Settings → Connectors'],
+ ['Replies and follow-ups','Replies; Sent &amp; follow-ups'],['Meetings and next actions','Meetings &amp; tasks'],
+ ['Pipeline and management visibility','Dashboard; Opportunity pipeline'],
+ ['Verified vs unverified vs AI vs approved','Provenance badges on every record'],
+ ['Nurture, approval, disqualify, no-contact, closure','Pipeline → Holding lanes'],
+ ['AI: summarise, find gaps, recommend, prioritise','Company detail; Settings → AI workflow'],
+ ['AI: pick decision-maker, draft, follow up, classify, next action','Company; Review queue; Replies'],
+ ['Authentication and access control','Sign-in; Settings → Users &amp; roles'],
+ ['Auditability','Audit trail'],['Secure configuration','Settings → AI workflow; Connectors'],
+ ['Commercial controls','Settings → Commercial guardrails'],['Error handling','Pre-send checks; connector status'],
+ ['Documentation of stack and data','Build notes']
+];
+
+/* company detail content */
+const DETAIL = {
+ yildiz:{
+  sub:'Jute spinner and technical-textile converter, İzmir · founded 1994 · ~340 staff',
+  tags:['<span class="tag ok">Qualified</span>','<span class="tag">Commercial discussion</span>','<span class="tag alert">Pricing question open</span>','<span class="tag">Jute yarn</span>'],
+  kv:[['Legal name','Yıldız Tekstil Sanayi ve Ticaret A.Ş.','v'],['Registration','İzmir Ticaret Sicil 44192-K','v'],['Type','Converter — spins and weaves','v'],['Website','yildiztekstil.test','v'],['Employees','~340','u'],['Imports jute','12,400 MT in 2025','v'],['Current suppliers','Two Indian mills','a'],['Annual revenue','~USD 48M','u'],['Screening','Clear — no sanctions match','v']],
+  summary:'A mid-size İzmir spinner importing about 12,400 MT of jute a year, currently split across two Indian mills. Their published complaint at the 2025 Dhaka fair was count inconsistency, not price, and their product line is technical textiles where consistency matters more than the lowest tonne rate. Our 8 lb and 10 lb counts match the range on their own product pages.',
+  sumfoot:'Built from 6 verified fields and 1 analyst note · sonnet-class · 18 Sep 06:12',
+  reco:'<b>Recommended: proceed to commercial discussion.</b> Import evidence is verified, the product overlap is direct, and a named sourcing manager has already replied. The only open item is that their reply asks for price per tonne CIF — which is reserved, so the next message must come from a Commercial Authority, not from the export desk.',
+  score:91, breakdown:[['Imports this category',30,30],['Buys from South Asia',20,20],['Volume fits capacity',15,13],['Certifications match',15,12],['Decision-maker found',10,10],['Market priority',10,6]],
+  gaps:[['Exact count split across their lines','Would sharpen the technical pitch','open'],['Whether purchasing is centralised','Affects who signs off','open']],
+  next:'Their reply asks for price and payment terms. Escalate to Mahbub Rahman and send the standard acknowledgement in the meantime.',
+  research:'Yıldız spins jute and jute-blend yarn for agricultural and geotextile use, with three lines listed on their site in the 6–12 lb range. Registry filings show steady growth and no insolvency events. Customs-level trade data confirms 12,400 MT of raw jute and jute yarn imported in 2025, sourced predominantly from India. A 2025 trade-press interview with their production director describes supply consistency as their main operational problem — which is the angle our outreach used. Two claims could not be confirmed: headcount and revenue, both taken from a directory listing rather than a filing.',
+  sources:[['Handelsblatt Türkiye trade profile','Trade press','Import volumes, supplier mix','12 Sep','v'],['İzmir Ticaret Sicil record','Registry','Legal name, registration, status','12 Sep','v'],['yildiztekstil.test/products','Company site','Product range, counts offered','12 Sep','v'],['UN Comtrade HS 5307','Trade data','12,400 MT imported 2025','12 Sep','v'],['Tekstil Dünyası interview','Trade press','Consistency complaint','12 Sep','v'],['B2B directory listing','Directory','Headcount, revenue','12 Sep','u']],
+  qual:[['Imports this product category','12,400 MT jute, 2025','v',1],['Buys from South Asia today','India, two mills','v',1],['Volume fits our capacity','~1,030 MT/month vs our 920','v',1],['Certification match','Needs OEKO-TEX — we hold it','v',1],['Decision-maker identified','Selin Aydın, Sourcing Manager','v',1],['Payment history / credit signal','No data','u',0]],
+  suit:'Proceed. Five of six criteria are verified against primary sources. The open criterion — credit signal — does not block outreach, but it will need to be answered before any terms discussion, so it has been raised as a task for Finance rather than left in the record.',
+  people:[['Selin Aydın','Sourcing Manager','s.aydin@yildiztekstil.test','Company site, contact page','Primary — owns supplier selection','v'],['Murat Yıldız','Managing Director','m.yildiz@yildiztekstil.test','Registry filing','Escalation only, not first contact','v'],['Production desk','General','uretim@yildiztekstil.test','Website footer','Fallback if no reply in 11 days','u']],
+  dm:'<b>Selin Aydın, Sourcing Manager.</b> She is named on the supplier-enquiry page, and in Turkish converters of this size the sourcing manager rather than the MD selects yarn suppliers. Writing to the Managing Director first would most likely be forwarded to her anyway, and would cost the personal opening.',
+  thread:[['out','18 Sep 09:12','Rifat Hasan (approved)','Consistent 8 lb jute yarn from Chittagong','Approved and drafted in Gmail.'],['in','18 Sep 07:42','Selin Aydın','Re: Consistent 8 lb jute yarn','Interested — asks for spec and price CIF İzmir.'],['out','14 Sep 09:05','Rifat Hasan (approved)','Consistent 8 lb jute yarn from Chittagong','First touch, consistency angle. Opened 4 times.']],
+  replyclass:'<b>Pricing request</b>, positive intent, high confidence (0.91). She asks two things: the technical specification, which we can answer today, and price per tonne CIF İzmir, which we cannot. Splitting the reply is the recommended handling — answer the technical half now so momentum is kept, and hand the commercial half to an authorised person the same day.',
+  nextaction:'Send the specification sheet with the standard acknowledgement on terms, and escalate the pricing question to Mahbub Rahman with a 24-hour flag. Book the follow-up call for Monday 14:00 with Commercial Authority present.',
+  history:[['18 Sep 09:12','human','<b>Rifat Hasan</b> approved outreach message #412 (AI v3, 2 edits)'],['18 Sep 08:47','ai','Reply classified as <b>pricing request</b>, confidence 0.91'],['18 Sep 07:42','good','Reply received from Selin Aydın'],['14 Sep 09:05','sys','Gmail draft created and sent from approver mailbox'],['14 Sep 08:50','human','<b>Rifat Hasan</b> approved first-touch message #398'],['13 Sep 16:10','ai','First-touch draft generated, consistency angle'],['12 Sep 11:22','human','<b>Nusrat Jahan</b> confirmed 5 qualification criteria'],['12 Sep 10:40','ai','Research run: 14 pages, 6 sources, fit score 91'],['12 Sep 10:38','human','<b>Nusrat Jahan</b> added company from trade-fair card']]
+ }
+};
+const GENERIC = id => {
+ const c = COMPANIES.find(x=>x.id===id) || COMPANIES[0];
+ const d = JSON.parse(JSON.stringify(DETAIL.yildiz));
+ d.sub = c.type+' · '+c.market+' · sample record';
+ d.score = c.score;
+ d.tags = ['<span class="tag">'+c.stage+'</span>','<span class="tag">'+c.market+'</span>',(c.gaps? '<span class="tag due">'+c.gaps+' data gap'+(c.gaps>1?'s':'')+'</span>':'<span class="tag ok">No gaps</span>')];
+ d.next = c.next;
+ return d;
+};
+
+/* ---------------- render ---------------- */
+const $ = s => document.querySelector(s);
+const el = (h) => { const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstChild; };
+function bar(v,max,cls){ return '<div class="bar '+cls+'"><span style="width:'+Math.round(v/max*100)+'%"></span></div>'; }
+function provOf(k){ return k==='v' ? '<span class="prov v"><i></i>Verified</span>' : k==='u' ? '<span class="prov u"><i></i>Unverified</span>' : k==='a' ? '<span class="prov a"><i></i>AI</span>' : '<span class="prov h"><i></i>Approved</span>'; }
+
+function renderCompanies(){
+  const st=$('#f-stage').value, mk=$('#f-market').value, fit=$('#f-fit').value, gapsOnly=$('#f-gaps').checked;
+  const rows = COMPANIES.filter(c=>
+    (!st||c.stage===st) && (!mk||c.market===mk) &&
+    (fit===''|| (fit==='0'? c.score<60 : c.score>=+fit)) && (!gapsOnly||c.gaps>0));
+  $('#companytable').innerHTML = rows.map(c=>`
+    <tr class="click" onclick="openCompany('${c.id}')">
+      <td><b>${c.name}</b></td><td>${c.market}</td><td>${c.type}</td>
+      <td><div style="display:flex; align-items:center; gap:8px"><span class="score">${c.score}</span>${bar(c.score,100,c.score>=80?'hi':c.score>=60?'mid':'lo')}</div></td>
+      <td>${c.gaps? '<span class="tag due">'+c.gaps+' missing</span>' : '<span class="tag ok">Complete</span>'}</td>
+      <td>${c.stage}</td><td>${c.dm}</td><td>${c.owner}</td><td class="small muted">${c.next}</td>
+    </tr>`).join('');
+  $('#countline').textContent = rows.length+' of '+COMPANIES.length+' companies shown';
+}
+
+function openCompany(id){
+  const c = COMPANIES.find(x=>x.id===id)||COMPANIES[0];
+  const d = DETAIL[id] || GENERIC(id);
+  go('company');
+  $('#co-name').textContent = c.name;
+  $('#co-sub').textContent = d.sub;
+  $('#co-tags').innerHTML = d.tags.join('');
+  $('#co-kv').innerHTML = d.kv.map(r=>`<dt>${r[0]}</dt><dd>${r[1]} ${provOf(r[2])}</dd>`).join('');
+  $('#co-summary').textContent = d.summary;
+  $('#co-sumfoot').textContent = d.sumfoot;
+  $('#co-reco').innerHTML = d.reco;
+  $('#co-score').textContent = d.score;
+  $('#co-breakdown').innerHTML = d.breakdown.map(b=>`<div><div style="display:flex; justify-content:space-between" class="small"><span>${b[0]}</span><b class="num">${b[2]}/${b[1]}</b></div>${bar(b[2],b[1],b[2]/b[1]>=.8?'hi':b[2]/b[1]>=.5?'mid':'lo')}</div>`).join('');
+  $('#co-gaps').innerHTML = d.gaps.length? d.gaps.map(g=>`<div class="small"><b>${g[0]}</b><div class="muted">${g[1]}</div><div style="margin-top:5px; display:flex; gap:6px"><button class="btn sm" onclick="toast('Task created and assigned')">Make a task</button><button class="btn sm" onclick="toast('Marked as not needed for this company')">Not needed</button></div></div>`).join('<hr class="sep" style="margin:2px 0">') : '<p class="small muted" style="margin:0">Nothing missing. Every qualification field has a source.</p>';
+  $('#co-next').textContent = d.next;
+  $('#co-research').textContent = d.research;
+  $('#co-sources').innerHTML = d.sources.map(s=>`<tr><td><b>${s[0]}</b></td><td>${s[1]}</td><td class="small">${s[2]}</td><td class="small muted">${s[3]}</td><td>${provOf(s[4])}</td></tr>`).join('');
+  $('#co-qual').innerHTML = d.qual.map(q=>`<tr><td><b>${q[0]}</b></td><td class="small">${q[1]}</td><td>${provOf(q[2])}</td><td>${q[3]?'<span class="tag ok">Confirmed</span>':'<button class="btn sm" onclick="toast(\'Confirmation needs a source — add one first\')">Confirm</button>'}</td></tr>`).join('');
+  $('#qual-status').textContent = d.qual.filter(q=>q[3]).length+' of '+d.qual.length+' confirmed';
+  $('#co-suit').textContent = d.suit;
+  $('#co-people').innerHTML = d.people.map(p=>`<tr><td><b>${p[0]}</b></td><td>${p[1]}</td><td class="small mono">${p[2]}</td><td class="small muted">${p[3]} ${provOf(p[5])}</td><td class="small">${p[4]}</td><td><button class="btn sm" onclick="toast('Set as primary contact')">Use</button></td></tr>`).join('');
+  $('#co-dm').innerHTML = d.dm;
+  $('#co-thread').innerHTML = d.thread.map(t=>`<div style="border-left:3px solid ${t[0]==='in'?'var(--verified)':'var(--ochre)'}; padding-left:11px"><div class="small"><b>${t[2]}</b> <span class="muted">· ${t[1]} · ${t[0]==='in'?'received':'sent'}</span></div><div class="small">${t[3]}</div><div class="tiny muted">${t[4]}</div></div>`).join('');
+  $('#co-replyclass').innerHTML = d.replyclass;
+  $('#co-nextaction').textContent = d.nextaction;
+  $('#co-history').innerHTML = d.history.map(h=>`<li class="${h[1]}"><span class="when">${h[0]}</span><span class="dot"></span><span class="what">${h[2]}</span></li>`).join('');
+  document.querySelectorAll('#cotabs button').forEach((b,i)=>b.classList.toggle('on',i===0));
+  document.querySelectorAll('#s-company .pane').forEach((p,i)=>p.classList.toggle('on',i===0));
+}
+
+function renderAll(){
+  $('#funnel').innerHTML = FUNNEL.map(f=>`<div><div style="display:flex; justify-content:space-between" class="small"><span>${f[0]}</span><b class="num">${f[1]}</b></div>${bar(f[1],128,f[1]>=41?'hi':f[1]>=14?'mid':'lo')}</div>`).join('');
+  $('#marketbars').innerHTML = MARKETS_BAR.map(m=>`<div><div style="display:flex; justify-content:space-between" class="small"><span>${m[0]}</span><b class="num">${m[1]}</b></div>${bar(m[1],34,'mid')}</div>`).join('');
+  $('#board').innerHTML = STAGES.map(s=>{
+    const leads = STAGE_LEADS[s]||[];
+    return `<div class="col"><h4>${s} <span class="num">${leads.length}</span></h4><div class="stack">${leads.map(l=>`<div class="lead ${l[2]}" onclick="go('companies')"><b>${l[0]}</b><div class="tiny muted">${l[1]}</div><div class="meta"><span class="tag">${s}</span></div></div>`).join('')||'<p class="tiny muted" style="margin:0">Nothing here.</p>'}</div></div>`;
+  }).join('');
+  $('#lanes').innerHTML = LANES.map(l=>`<div class="lane"><b>${l[0]}</b><div class="n num">${l[1]}</div><div class="tiny muted">${l[2]}</div></div>`).join('');
+  $('#producttable').innerHTML = PRODUCTS.map(p=>`<tr><td><b>${p[0]}</b></td><td class="mono small">${p[1]}</td><td class="small">${p[2]}</td><td class="num">${p[3]}</td><td class="small muted">${p[4]}</td><td class="num">${p[5]}</td><td><button class="btn sm" onclick="toast('Capability sheet opened')">Edit sheet</button></td></tr>`).join('');
+  $('#markettable').innerHTML = MARKET_ROWS.map(m=>`<tr><td><b>${m[0]}</b></td><td class="small">${m[1]}</td><td class="num">${m[2]}</td><td class="small">${m[3]}</td><td>${m[4]==='High'?'<span class="tag ok">High</span>':m[4]==='Medium'?'<span class="tag">Medium</span>':'<span class="tag">Watch</span>'}</td><td class="num">${m[5]}</td><td class="small muted">${m[6]}</td><td><button class="btn sm" onclick="go('companies')">View companies</button></td></tr>`).join('');
+  $('#contacttable').innerHTML = CONTACTS.map(c=>`<tr><td><b>${c[0]}</b></td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td><td class="mono small">${c[4]}</td><td>${provOf(c[5])}</td><td>${c[6]==='Yes'?'<span class="tag ok">Yes</span>':'<span class="tag alert">'+c[6]+'</span>'}</td><td class="small muted">${c[7]}</td></tr>`).join('');
+  $('#outreachtable').innerHTML = OUTREACH.map(o=>`<tr><td><b>${o[0]}</b></td><td>${o[1]}</td><td class="small">${o[2]}</td><td class="small">${o[3]==='—'?'<span class="muted">not approved</span>':o[3]+' <span class="prov h"><i></i></span>'}</td><td>${o[4]==='Replied'?'<span class="tag ok">Replied</span>':o[4]==='Blocked'?'<span class="tag alert">Blocked</span>':'<span class="tag">'+o[4]+'</span>'}</td><td class="num">${o[5]}</td><td class="small muted">${o[6]}</td><td><button class="btn sm" onclick="go('replies')">Open</button></td></tr>`).join('');
+  $('#audittable').innerHTML = AUDIT.map(a=>`<tr><td class="small num">${a[0]}</td><td class="small"><b>${a[1]}</b></td><td class="small">${a[2]}</td><td class="small">${a[3]}</td><td class="small muted">${a[4]}</td><td class="tiny mono muted">${a[5]}</td></tr>`).join('');
+  $('#weights').innerHTML = WEIGHTS.map(w=>`<div><div style="display:flex; justify-content:space-between" class="small"><span>${w[0]}</span><b class="num">${w[1]}%</b></div><input type="range" min="0" max="40" value="${w[1]}" style="width:100%" oninput="this.previousElementSibling.querySelector('b').textContent=this.value+'%'"></div>`).join('');
+  $('#reserved').innerHTML = RESERVED.map(r=>`<span class="tag alert">${r}</span>`).join('');
+  $('#coverage').innerHTML = COVERAGE.map(c=>`<tr><td class="small">${c[0]}</td><td class="small"><b>${c[1]}</b></td></tr>`).join('');
+  renderCompanies();
+  renderDrafts();
+  renderReplies();
+}
+
+/* review queue */
+const DRAFTS = [
+ {id:0,t:'First-touch — NordFiber Handels GmbH',who:'Lena Brauer',age:'Waiting 51h',by:'Nusrat Jahan',kind:'First-touch'},
+ {id:1,t:'Follow-up 2 — Sahara Packaging LLC',who:'Omar Farouk',age:'Due today',by:'AI cadence',kind:'Follow-up'},
+ {id:2,t:'Reply — Yıldız Tekstil A.Ş.',who:'Selin Aydın',age:'Waiting 2h',by:'AI, from reply',kind:'Reply'},
+ {id:3,t:'First-touch — Baltic Sack AB',who:'Nils Ek',age:'Waiting 6h',by:'Rifat Hasan',kind:'First-touch'},
+ {id:4,t:'Follow-up 1 — Bosphorus Ambalaj',who:'Emre Koç',age:'Due tomorrow',by:'AI cadence',kind:'Follow-up'},
+ {id:5,t:'First-touch — Hansa Agrar Handel',who:'— no contact yet',age:'Blocked',by:'Nusrat Jahan',kind:'First-touch'}
+];
+const DRAFT_BODY = `Dear Ms Brauer,
+
+<mark class="why">Your team lists hessian liners for the agri-packaging range</mark>, and <mark class="why">NordFiber imported roughly 2,900 MT of jute goods last year</mark> — so you will already know how much the count varies between mills.
+
+Anwar Group spins jute yarn in Chittagong from 4 lb to 20 lb, <mark class="why">OEKO-TEX certified</mark>, with <mark class="why">920 MT of monthly capacity</mark> held for export. What buyers usually tell us matters is that count stays where it should across shipments, and we test every bale against the declared count before it leaves the mill.
+
+<mark class="risk">I can arrange a sample of the 8 lb count for your lab this month.</mark>
+
+May I ask one question: are you specifying liners by count, or by finished bag weight? The answer changes what I should send you.
+
+Kind regards,
+Rifat Hasan
+Export Development, Anwar Group`;
+const DRAFT_WHY = ['Their product page names hessian liners — the message opens on their range, not on ours.','Trade data confirms they already import jute, so the pitch is a switch, not an education.','OEKO-TEX is on their supplier requirements page, so the certification is stated early.','Consistency is the angle because two German buyers this quarter replied to it and none replied to a price-led message.','One question, not three. Single-question first touches replied at 71% in our last 47 messages.'];
+const CHECKS = [
+ ['Named decision-maker with a verified address','ok'],['Every claim traced to a verified source','ok'],['No unverified field used in the text','ok'],
+ ['Under 140 words','ok'],['Send window respects Europe/Berlin hours','ok'],['Recipient on the test-domain allowlist','ok'],
+ ['Weekly cap for Germany not exceeded (7 of 12)','ok'],['No reserved commercial matter','block'],['Unsubscribe and lawful-basis recorded','ok']
+];
+function renderDrafts(){
+  $('#draftlist').innerHTML = DRAFTS.map(d=>`<div style="padding:11px 13px; border-bottom:1px solid var(--line-2); cursor:pointer; ${d.id===0?'background:var(--surface-2); border-left:3px solid var(--ochre)':'border-left:3px solid transparent'}" onclick="toast('Opened: ${d.t}')">
+    <b class="small">${d.t}</b><div class="tiny muted">${d.who} · drafted by ${d.by}</div>
+    <div style="margin-top:5px; display:flex; gap:5px"><span class="tag">${d.kind}</span>${d.age==='Blocked'?'<span class="tag alert">Blocked</span>':'<span class="tag due">'+d.age+'</span>'}</div></div>`).join('');
+  $('#dr-body').innerHTML = DRAFT_BODY;
+  $('#dr-why').innerHTML = DRAFT_WHY.map(w=>`<li>${w}</li>`).join('');
+  $('#dr-checks').innerHTML = CHECKS.map(c=>`<div style="display:flex; justify-content:space-between; gap:9px" class="small"><span>${c[0]}</span>${c[1]==='ok'?'<span class="tag ok">Pass</span>':'<span class="tag alert">Hold</span>'}</div>`).join('');
+}
+function approve(){ toast('Approved. Gmail draft created in your mailbox — nothing sent.'); }
+
+/* replies */
+const REPLIES = [
+ {t:'Yıldız Tekstil A.Ş.',who:'Selin Aydın',cat:'Pricing request',when:'Today 07:42',new:true,
+  body:`Hello Rifat,\n\nThank you for writing. Your timing is good — we are reviewing our yarn supply for the first quarter and count consistency has been a real problem for us.\n\nCould you send the technical specification for the 8 lb count? And what would your price per tonne be, CIF İzmir, for roughly 60 MT a month? We would also need to understand payment terms before going further.\n\nBest regards,\nSelin Aydın\nSourcing Manager, Yıldız Tekstil A.Ş.`,
+  cls:'Pricing request', intent:'Positive — evaluating supply', urg:'Reply within 24h', conf:'High (0.91)',
+  reason:'Two requests in one message. The specification request is technical and can be answered by the export desk today. The price, volume and payment-terms request is reserved, so the message is held from any automatic reply and routed to a Commercial Authority.',
+  next:'Split the response. Send the 8 lb specification with the standard acknowledgement on terms, and escalate price and payment terms to Mahbub Rahman with a 24-hour flag. Move the opportunity to Commercial discussion.'},
+ {t:'Osaka Agri Textiles',who:'Kenji Mori',cat:'Information request',when:'Yesterday 16:04',new:true,
+  body:`Dear Mr Hasan,\n\nWe would be interested to see your specification and certification documents. Our agricultural netting line uses 10 lb yarn.\n\nKenji Mori`,
+  cls:'Information request', intent:'Positive — early interest', urg:'Reply within 48h', conf:'High (0.88)',
+  reason:'A clean technical request with no reserved matter. Everything asked for exists on the product capability sheet, so the draft can be prepared without escalation.',
+  next:'Send the 10 lb specification and the OEKO-TEX certificate. Ask whether netting is knitted or woven, since that changes the twist we recommend.'},
+ {t:'Milano Juta S.r.l.',who:'Giulia Ferri',cat:'Not now',when:'Yesterday 11:12',new:true,
+  body:`Buongiorno,\n\nWe are contracted with our current supplier until March. Please come back to us in the new year.\n\nGiulia Ferri`,
+  cls:'Not now', intent:'Neutral — timing, not fit', urg:'No action this week', conf:'High (0.94)',
+  reason:'A soft no with a date attached. The right handling is to stop the cadence immediately rather than send follow-up 2, and to set a single dated touch instead.',
+  next:'Cancel remaining follow-ups. Move to Nurture with one touch scheduled for the second week of January, referencing her March contract end.'},
+ {t:'Gulf Pack Industries',who:'Automated',cat:'Auto-reply',when:'Yesterday 09:30',new:true,
+  body:`This mailbox is not monitored. Please direct supplier enquiries to procurement@gulfpack.test.`,
+  cls:'Auto-reply — wrong address', intent:'None', urg:'Low', conf:'High (0.97)',
+  reason:'Not a human reply. The message names a better address, which has been captured as an unverified contact rather than used straight away.',
+  next:'Add procurement@gulfpack.test as an unverified contact, verify it, then resend the first touch. Do not count this as a delivered outreach.'}
+];
+function renderReplies(){
+  $('#replylist').innerHTML = REPLIES.map((r,i)=>`<div style="padding:11px 13px; border-bottom:1px solid var(--line-2); cursor:pointer; ${i===0?'background:var(--surface-2); border-left:3px solid var(--ochre)':'border-left:3px solid transparent'}" onclick="showReply(${i})">
+    <b class="small">${r.t}</b><div class="tiny muted">${r.who} · ${r.when}</div>
+    <div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap"><span class="tag">${r.cat}</span>${r.new?'<span class="tag due">New</span>':''}</div></div>`).join('');
+  showReply(0);
+}
+function showReply(i){
+  const r = REPLIES[i];
+  $('#rp-title').textContent = r.t+' — '+r.who;
+  $('#rp-when').textContent = r.when;
+  $('#rp-from').textContent = r.who;
+  $('#rp-subject').textContent = 'Re: '+r.t;
+  $('#rp-body').textContent = r.body;
+  $('#rp-cat').textContent = r.cls; $('#rp-intent').textContent = r.intent;
+  $('#rp-urg').textContent = r.urg; $('#rp-conf').textContent = r.conf;
+  $('#rp-reason').textContent = r.reason; $('#rp-next').textContent = r.next;
+}
+
+/* ---------------- nav & chrome ---------------- */
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id==='s-'+name));
+  document.querySelectorAll('.rail a.nav').forEach(a=>a.classList.toggle('active', a.dataset.screen===name));
+  const labels={dashboard:'Dashboard',pipeline:'Opportunity pipeline',products:'Products',markets:'Target markets',companies:'Companies',company:'Companies / Company record',contacts:'Decision-makers',review:'Review queue',outreach:'Sent & follow-ups',replies:'Replies',meetings:'Meetings & tasks',audit:'Audit trail',settings:'Settings & access',spec:'Build notes'};
+  $('#crumb').textContent = labels[name]||name;
+  document.getElementById('rail').classList.remove('open');
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.rail a.nav').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); go(a.dataset.screen);}));
+function cotab(btn,pane){
+  const tabs = btn.parentElement;
+  tabs.querySelectorAll('button').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  const scope = tabs.parentElement;
+  scope.querySelectorAll(':scope > .pane').forEach(p=>p.classList.toggle('on', p.id===pane));
+}
+let tt;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('on'),2600); }
+function openModal(id){ document.getElementById(id).classList.add('on'); }
+function closeModal(){ document.querySelectorAll('.modal').forEach(m=>m.classList.remove('on')); }
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) closeModal(); }));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark?'light':'dark');
+}
+function signIn(sso){
+  const role = $('#lg-role').value;
+  $('#whorole').textContent = role;
+  $('#login').style.display='none';
+  $('#app').classList.add('on');
+  renderAll(); go('dashboard');
+  if(sso) toast('Signed in with Google Workspace · Gmail draft scope granted');
+}
+function signOut(){ $('#app').classList.remove('on'); $('#login').style.display='grid'; }
+</script>
+</body>
+</html>

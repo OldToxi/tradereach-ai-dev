@@ -1,0 +1,42 @@
+/**
+ * lib/supabase/admin.ts — the service-role client. BYPASSES ALL ROW-LEVEL SECURITY.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ THREE LEGAL CALLERS. Adding a fourth is an architecture decision, not a   │
+ * │ convenience — discuss it before you do it, and record it in WORKLOG.md.   │
+ * │                                                                          │
+ * │   1. lib/audit.ts        — audit rows must never be blocked by a policy   │
+ * │   2. lib/gmail.ts        — gmail_token has RLS on and zero policies       │
+ * │   3. scripts/seed.ts     — runs before any user exists                    │
+ * │                                                                          │
+ * │ lib/ai/context.ts and lib/ai/client.ts also use it, and that is           │
+ * │ deliberate: prompt context is assembled server-side from facts the        │
+ * │ requesting user has already been authorised to view by the calling page.  │
+ * │ Always check access with the user client first, then build context.       │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * If you are writing a page or an ordinary server action and reach for this file,
+ * you almost certainly want lib/supabase/server.ts instead.
+ */
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '../database.types'
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!url || !key) {
+  throw new Error(
+    'Supabase admin client requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY',
+  )
+}
+
+// This key must never reach the browser. Next.js only inlines NEXT_PUBLIC_* vars,
+// so importing this file into a client component is a build error rather than a leak —
+// but do not rely on that. Server code only.
+if (typeof window !== 'undefined') {
+  throw new Error('lib/supabase/admin.ts was imported into client code. Remove that import.')
+}
+
+export const admin = createClient<Database>(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false },
+})
