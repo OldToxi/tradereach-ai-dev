@@ -863,42 +863,57 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     No `npm run build` was run (dev server not running); `/pipeline`, `/dashboard` and
     `/meetings` are the three new real routes (previously placeholders).
 - surprises: |
-    Same environment blocker as Phase 9: no linked Supabase project, so `0012_phase10.sql`
-    is written but NOT applied and `lib/database.types.ts` was hand-edited again (adding
-    `weekly_readout`) — flagged because it contradicts the AGENTS.md "don't hand-write
-    types" rule. The migration is the source of truth and must be applied (and types
-    regenerated) on a machine with the linked project before a seeded end-to-end run of
-    the three new routes against a live instance.
+    Initially recorded the same "no linked project" blocker as Phase 9, but that was
+    stale: the linked project (`tradereach-ai-dev`, ref `abhzeuttntpgrrignqgw`) IS
+    reachable from this environment. Addendum below — `0012` applied and types
+    regenerated; the regenerated `weekly_readout` types matched the hand-edit exactly.
+
+---
+
+### T10 addendum — migrations applied, types regenerated (blocker resolved)
+- when: 2026-09-18 23:25 UTC
+- agent: opencode
+- files: none (DB + lib/database.types.ts regenerated)
+- done: |
+    The "no linked Supabase project" note carried over from Phase 9 was wrong — the
+    project is linked and reachable. `supabase migration list` showed 0011/0012 as
+    local-only; `supabase db push` applied both to the remote (`tradereach-ai-dev`).
+    Regenerated `lib/database.types.ts` via `supabase gen types typescript --linked`
+    (written UTF-8 via .NET to avoid the PowerShell UTF-16 redirect); the regenerated
+    `weekly_readout` block is byte-identical to the hand-edit, confirming it was correct.
+- verified: `supabase migration list` now shows 0011 + 0012 in Remote; `weekly_readout`
+    is live (service-role select returns ok, count 0); `npm run verify` green (190 tests).
+- notes: `supabase migration up` targets the LOCAL Docker stack (not running) — use
+    `supabase db push` for the remote. Nothing blocks a live seeded run now.
+- surprises: the anon/service keys in `.env.local` were never the blocker — `db push`
+    needs the CLI's linked project (access token), which is present in this environment.
 
 ---
 
 ## Handoff
 
-**Status:** Phase 10 complete (7/7). Meetings, tasks, pipeline board, dashboard and the
-weekly read-out are all built and unit-tested. Next is Phase 11 (control surfaces, 5 tasks).
+**Status:** Phase 10 complete (7/7), migrations applied, types regenerated. Meetings,
+tasks, pipeline board, dashboard and the weekly read-out are all built, unit-tested, and
+the schema is live in the linked project. Next is Phase 11 (control surfaces, 5 tasks).
 
-- Last completed task: T10.1–T10.7 (meetings + calendar, deterministic meeting brief,
-  tasks with the blocking flag honoured by the stage gate, drag-and-drop pipeline board
-  with holding lanes, live dashboard, deterministic weekly read-out). `npm run verify`
+- Last completed task: T10.1–T10.7 plus the addendum that applied migrations `0011` and
+  `0012` to the linked remote and regenerated `lib/database.types.ts`. `npm run verify`
   green — 190 tests, 15 files.
 - Current task: none open — next code task is T11.1 (see PLAN.md). Note: T0.5 (Vercel
   deploy, a human step) is still unchecked, so `npm run progress` reports "next: T0.5";
   that does not block Phase 11.
-- Blocked on: **no linked Supabase project in this environment.** `supabase projects
-  list` is empty, so migrations `0011_reply_triage.sql` and `0012_phase10.sql` are
-  written but NOT applied, and `lib/database.types.ts` was hand-edited to match both.
-  Before any seeded end-to-end run of `/replies`, `/meetings`, `/pipeline` or
-  `/dashboard` against a live instance, apply both migrations and regenerate types on a
-  machine with the linked project. Nothing else blocks local work.
+- Blocked on: nothing. The linked project is reachable; both pending migrations are
+  applied; types are regenerated. A live seeded end-to-end run of `/replies`,
+  `/meetings`, `/pipeline` and `/dashboard` is now possible.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
-  `lib/database.types.ts` with `npx supabase gen types typescript --linked >
-  lib/database.types.ts` (direct bash redirect), not `npm run types` (UTF-16). Existing
-  Gmail tokens predate the `gmail.readonly` scope and will 403 until the user re-runs
-  the OAuth consent.
-- Commit status: Phases 2–8 committed. Phase 9 (T9.1–T9.6) and Phase 10 (T10.1–T10.7)
-  are staged but not yet committed — committing both now in this session.
+  `lib/database.types.ts` with `supabase gen types typescript --linked` (then re-encode
+  to UTF-8 on Windows — the plain `>` redirect emits UTF-16). `supabase migration up`
+  targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
+  tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
+  OAuth consent.
+- Commit status: Phases 2–10 committed (`d83b607` is Phase 10). No uncommitted changes.
 - Next command for the next agent:
 
 ```
@@ -906,6 +921,5 @@ npm run verify
 npm run dev
 ```
 
-Then start T11.1 from PLAN.md. Phases 9 and 10 are complete, tested, and ready to demo
-once 0011/0012 are applied and types regenerated on the linked machine.
+Then start T11.1 from PLAN.md. Phases 9 and 10 are complete, applied, and ready to demo.
 
