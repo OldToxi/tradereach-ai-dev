@@ -229,6 +229,71 @@ export async function createDraft(args: DraftArgs): Promise<{ draftId: string; t
 }
 
 /* ------------------------------------------------------------------ */
+/* T10.1 — calendar event creation, for the Schedule meeting modal      */
+/* ------------------------------------------------------------------ */
+
+export interface CalendarEventArgs {
+  profileId: string
+  summary: string
+  start: string // ISO
+  end: string // ISO
+  attendeeEmail?: string | null
+  attendeeName?: string | null
+}
+
+/**
+ * Creates a calendar event on the user's own primary calendar. Demo safety applies to
+ * attendees too: a non-`.test` address is dropped from the invite (the internal block
+ * still lands), never emailed. Returns the event id, stored on meeting.calendar_event_id.
+ */
+export async function createCalendarEvent(args: CalendarEventArgs): Promise<{ eventId: string }> {
+  const attendees =
+    args.attendeeEmail && recipientAllowedForCalendar(args.attendeeEmail)
+      ? [{ email: args.attendeeEmail, displayName: args.attendeeName ?? undefined }]
+      : undefined
+
+  const auth = await authedClient(args.profileId)
+  const calendar = google.calendar({ version: 'v3', auth })
+
+  try {
+    const res = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: {
+        summary: args.summary,
+        start: { dateTime: args.start },
+        end: { dateTime: args.end },
+        attendees,
+      },
+    })
+    const eventId = res.data.id
+    if (!eventId) {
+      throw new ConnectorError('Calendar returned no event id', 'The invite could not be created.')
+    }
+    return { eventId }
+  } catch (err: unknown) {
+    if (err instanceof ConnectorError) throw err
+    const e = err as { code?: number; message?: string }
+    if (e.code === 401 || e.code === 403) {
+      throw new ConnectorError(
+        `Calendar auth failed: ${e.message}`,
+        'Your calendar connection is missing or expired. Reconnect it in Settings → Connectors.',
+      )
+    }
+    throw new ConnectorError(
+      `Calendar event failed: ${e.message}`,
+      'The calendar invite could not be created. The meeting is still saved.',
+    )
+  }
+}
+
+/** Mirrors assertAllowedRecipient but returns a boolean instead of throwing. */
+function recipientAllowedForCalendar(email: string): boolean {
+  const pattern = process.env.ALLOWED_RECIPIENT_PATTERN ?? '%.test'
+  const suffix = pattern.replace('%', '')
+  return email.toLowerCase().endsWith(suffix.toLowerCase())
+}
+
+/* ------------------------------------------------------------------ */
 /* T8.1/T8.4 — connection status and disconnect, for Settings→Connectors*/
 /* ------------------------------------------------------------------ */
 

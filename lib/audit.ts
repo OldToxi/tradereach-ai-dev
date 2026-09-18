@@ -110,6 +110,8 @@ export const AUDIT = {
   REPLY_DRAFTED: 'Reply draft prepared',
   REPLY_ESCALATED: 'Escalated to Commercial Authority',
   MEETING_SCHEDULED: 'Meeting scheduled',
+  READOUT_GENERATED: 'Weekly read-out generated',
+  READOUT_REVIEWED: 'Weekly read-out reviewed',
   // connector
   GMAIL_CONNECTED: 'Gmail connected',
   GMAIL_DRAFT_CREATED: 'Gmail draft created',

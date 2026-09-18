@@ -256,5 +256,7 @@ export async function changeStage(formData: FormData): Promise<CompanyActionStat
 
   revalidatePath(`/companies/${companyId}`)
   revalidatePath('/companies')
+  revalidatePath('/pipeline')
+  revalidatePath('/dashboard')
   return { ok: true, companyId }
 }

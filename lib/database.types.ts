@@ -922,6 +922,38 @@ export type Database = {
           },
         ]
       }
+      weekly_readout: {
+        Row: {
+          body: string
+          generated_at: string
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+        }
+        Insert: {
+          body: string
+          generated_at?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Update: {
+          body?: string
+          generated_at?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_readout_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

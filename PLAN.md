@@ -173,17 +173,17 @@ likely thing to go wrong.
 
 ## Phase 10 — Meetings, tasks, pipeline, dashboard
 
-- [ ] T10.1 `/meetings` upcoming list + `Schedule meeting` modal + Calendar event creation
-- [ ] T10.2 AI meeting brief from verified facts and the thread, with the explicit
+- [x] T10.1 `/meetings` upcoming list + `Schedule meeting` modal + Calendar event creation
+- [x] T10.2 AI meeting brief from verified facts and the thread, with the explicit
       "do not commit" list
-- [ ] T10.3 Tasks: create, assign, due, `blocks stage advancement` flag honoured by the gates
-- [ ] T10.4 `/pipeline` board: nine stages from the mock, drag between stages where the
+- [x] T10.3 Tasks: create, assign, due, `blocks stage advancement` flag honoured by the gates
+- [x] T10.4 `/pipeline` board: nine stages from the mock, drag between stages where the
       stage rules allow, refusal message where they don't
-- [ ] T10.5 Holding lanes: needs research, nurturing, awaiting approval, awaiting commercial
+- [x] T10.5 Holding lanes: needs research, nurturing, awaiting approval, awaiting commercial
       release, disqualified, no further contact, closed
-- [ ] T10.6 `/dashboard`: six KPI tiles, Needs you today, funnel, market bars, follow-ups due,
+- [x] T10.6 `/dashboard`: six KPI tiles, Needs you today, funnel, market bars, follow-ups due,
       data health counts, connector status. All live queries
-- [ ] T10.7 Weekly AI read-out on the dashboard, generated on demand, marked unreviewed until
+- [x] T10.7 Weekly AI read-out on the dashboard, generated on demand, marked unreviewed until
       a human marks it reviewed
 
 ---

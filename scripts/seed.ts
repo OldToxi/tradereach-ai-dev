@@ -484,7 +484,7 @@ async function seedConversations() {
 async function reset() {
   console.log('resetting app data (auth users kept)…')
   const noId = '00000000-0000-0000-0000-000000000000'
-  for (const t of ['audit_event', 'reply', 'message', 'meeting', 'task', 'market_note', 'fact', 'source', 'contact', 'ai_run', 'company'] as const) {
+  for (const t of ['audit_event', 'reply', 'message', 'meeting', 'task', 'weekly_readout', 'market_note', 'fact', 'source', 'contact', 'ai_run', 'company'] as const) {
     await admin.from(t).delete().neq('id', noId)
   }
   await admin.from('suppression').delete().neq('email_or_domain', '')

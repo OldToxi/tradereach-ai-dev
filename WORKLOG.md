@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`███████████████████████░░░░░░░` **76%** — 59 of 78 tasks complete
+`█████████████████████████░░░░░` **85%** — 66 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -36,7 +36,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 7 · Drafting & review | 7 | 7 ✓ |
 | 8 · Gmail connector | 5 | 5 ✓ |
 | 9 · Replies & triage | 6 | 6 ✓ |
-| 10 · Meetings & pipeline | 0 | 7 |
+| 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 0 | 5 |
 | 12 · Tests, docs, deploy | 0 | 6 |
 <!-- PROGRESS:END -->
@@ -792,22 +792,104 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T10.1–T10.7 — meetings, tasks, pipeline board, dashboard, weekly read-out
+- when: 2026-09-18 23:10 UTC
+- agent: opencode
+- files: supabase/migrations/0012_phase10.sql, lib/database.types.ts (hand-edited),
+    lib/pipeline.ts, lib/meetings.ts, lib/dashboard.ts, lib/readout.ts, lib/gmail.ts,
+    lib/meeting-actions.ts, lib/readout-actions.ts, lib/audit.ts, lib/company-actions.ts,
+    app/globals.css, scripts/seed.ts, components/MeetingModal.tsx, components/TaskModal.tsx,
+    components/MeetingsScreen.tsx, components/PipelineScreen.tsx,
+    components/DashboardScreen.tsx, app/(app)/meetings/page.tsx,
+    app/(app)/pipeline/page.tsx, app/(app)/dashboard/page.tsx, tests/pipeline.test.ts,
+    tests/meetings.test.ts, tests/dashboard.test.ts, tests/readout.test.ts
+- done: |
+    Whole of Phase 10. Migration `0012_phase10.sql` `create or replace`s
+    `enforce_stage_gate()` to add the blocking-task gate (forward moves only; target
+    must be in contact_identification…commercial_discussion; any open task with
+    `blocks_stage` and `done=false` raises) and adds the `weekly_readout` table (id,
+    body, generated_at, reviewed_at, reviewed_by → profiles) with read =
+    `sees_all_markets()`, write = `can_write() and sees_all_markets()`.
+
+    T10.1 `/meetings`: `MeetingModal` + `scheduleMeeting` action (validates
+    date/time/purpose/company, stores the GMT+6 wall-clock as UTC, best-effort
+    `createCalendarEvent` via the new `lib/gmail.ts#createCalendarEvent` — non-allowlisted
+    attendees dropped, meeting row saved even if the calendar call fails — then
+    `MEETING_SCHEDULED` audit). `MeetingsScreen` shows upcoming meetings + open tasks +
+    the AI brief panel.
+
+    T10.2 meeting brief: deterministic, no new prompt (AGENTS.md §5 "four prompts
+    only"). `lib/meetings.ts#buildMeetingBrief` assembles verified-fact count +
+    research summary + open questions ("Ask them:") + the full `RESERVED_LABELS` "do not
+    commit" list + the Commercial Authority as the only person who may answer them. A
+    commercial meeting additionally sets `requires_commercial=true`.
+
+    T10.3 Tasks: `TaskModal` + `addTask` (title required, optional assignee/due/company/
+    `blocksStage`) and `toggleTaskDone`. The `blocks_stage` flag is honoured by the DB
+    trigger (0012) and mirrored client-side in `lib/pipeline.ts#moveBlockReason`.
+
+    T10.4/T10.5 `/pipeline`: `PipelineScreen` renders the nine-stage board from the mock
+    plus the seven holding lanes (`holdingLanesWithCounts`). Drag-and-drop calls
+    `changeStage`; `moveBlockReason` (gaps / named contact / blocking task) drives the
+    client-side refusal message, and `changeStage` now revalidates `/pipeline` and
+    `/dashboard`. Holding lanes stay open even when a blocking task exists (a blocked
+    lead can still be disqualified/closed — mirrored in the trigger's "forward moves
+    only" rule).
+
+    T10.6 `/dashboard`: `DashboardScreen` renders six KPI tiles, the funnel, market bars,
+    "Needs you today" (tier-ordered by `rankNeeds`: pricing reply → untriaged reply →
+    awaiting approval → due follow-up → needs research), follow-ups due, data-health
+    counts, and connector status. All numbers derived in `lib/dashboard.ts` from live
+    queries (criterion facts, replies, messages, meetings, tasks) — nothing stored.
+
+    T10.7 weekly read-out: `generateReadout` (write = can_write AND sees_all_markets)
+    builds the digest deterministically via `lib/readout.ts#buildWeeklyReadout` and
+    inserts a `weekly_readout` row (unreviewed); `markReadoutReviewed` stamps
+    `reviewed_at`/`reviewed_by`. New audit events `READOUT_GENERATED`/`READOUT_REVIEWED`.
+- verified: |
+    `npm run verify` green — typecheck clean, lint clean, 190 tests (15 files; up from
+    161). New pure-helper tests: `tests/pipeline.test.ts` (8 — forward-move gates vs
+    holding-lane sideways freedom, tone bands, lane counts), `tests/meetings.test.ts` (8 —
+    brief names authority + full reserved list, GMT+6 round-trip, due labels),
+    `tests/dashboard.test.ts` (9 — qualified/gaps, KPI maths, funnel order, market-bar
+    sort, tier ranking, humanAge), `tests/readout.test.ts` (4 — read-out is
+    numbers-provably-only). Seed already contained 3 tasks + 2 meetings; `reset()` now
+    also clears `weekly_readout`.
+- notes: |
+    T10.6's "new replies to triage" KPI counts untriaged `reply` rows (`category IS
+    NULL`), not inbound `message` rows — the two were conflated in the first pass and
+    separated before verify. `meeting` has no `contact_id`; "With" is derived from the
+    company primary contact. Meeting times are input/displayed in GMT+6 (`Asia/Dhaka`).
+    No `npm run build` was run (dev server not running); `/pipeline`, `/dashboard` and
+    `/meetings` are the three new real routes (previously placeholders).
+- surprises: |
+    Same environment blocker as Phase 9: no linked Supabase project, so `0012_phase10.sql`
+    is written but NOT applied and `lib/database.types.ts` was hand-edited again (adding
+    `weekly_readout`) — flagged because it contradicts the AGENTS.md "don't hand-write
+    types" rule. The migration is the source of truth and must be applied (and types
+    regenerated) on a machine with the linked project before a seeded end-to-end run of
+    the three new routes against a live instance.
+
+---
+
 ## Handoff
 
-**Status:** Phase 9 complete (6/6). Replies & triage is fully built and unit-tested.
-Next is Phase 10 (meetings & pipeline, 7 tasks).
+**Status:** Phase 10 complete (7/7). Meetings, tasks, pipeline board, dashboard and the
+weekly read-out are all built and unit-tested. Next is Phase 11 (control surfaces, 5 tasks).
 
-- Last completed task: T9.2–T9.6 (ingestion, `/replies` inbox, five next-actions,
-  deterministic split handling, SQL-enforced no-further-contact suppression). `npm run
-  verify` green — 161 tests, 11 files.
-- Current task: none open — next code task is T10.1 (see PLAN.md). Note: T0.5
-  (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
-  "next: T0.5"; that does not block Phase 10.
+- Last completed task: T10.1–T10.7 (meetings + calendar, deterministic meeting brief,
+  tasks with the blocking flag honoured by the stage gate, drag-and-drop pipeline board
+  with holding lanes, live dashboard, deterministic weekly read-out). `npm run verify`
+  green — 190 tests, 15 files.
+- Current task: none open — next code task is T11.1 (see PLAN.md). Note: T0.5 (Vercel
+  deploy, a human step) is still unchecked, so `npm run progress` reports "next: T0.5";
+  that does not block Phase 11.
 - Blocked on: **no linked Supabase project in this environment.** `supabase projects
-  list` is empty, so migration `0011_reply_triage.sql` is written but NOT applied and
-  `lib/database.types.ts` was hand-edited to match. Before any seeded end-to-end run of
-  `/replies` against a live instance, apply 0011 and regenerate types on a machine with
-  the linked project. Nothing else blocks local work.
+  list` is empty, so migrations `0011_reply_triage.sql` and `0012_phase10.sql` are
+  written but NOT applied, and `lib/database.types.ts` was hand-edited to match both.
+  Before any seeded end-to-end run of `/replies`, `/meetings`, `/pipeline` or
+  `/dashboard` against a live instance, apply both migrations and regenerate types on a
+  machine with the linked project. Nothing else blocks local work.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -815,8 +897,8 @@ Next is Phase 10 (meetings & pipeline, 7 tasks).
   lib/database.types.ts` (direct bash redirect), not `npm run types` (UTF-16). Existing
   Gmail tokens predate the `gmail.readonly` scope and will 403 until the user re-runs
   the OAuth consent.
-- Commit status: Phases 2–8 committed. T9.1–T9.6 (triage v2 + replies & triage) are
-  staged but not yet committed — committing now in the same session.
+- Commit status: Phases 2–8 committed. Phase 9 (T9.1–T9.6) and Phase 10 (T10.1–T10.7)
+  are staged but not yet committed — committing both now in this session.
 - Next command for the next agent:
 
 ```
@@ -824,5 +906,6 @@ npm run verify
 npm run dev
 ```
 
-Then start T10.1 from PLAN.md. Phase 9's deliverables are all in place and tested.
+Then start T11.1 from PLAN.md. Phases 9 and 10 are complete, tested, and ready to demo
+once 0011/0012 are applied and types regenerated on the linked machine.
 
