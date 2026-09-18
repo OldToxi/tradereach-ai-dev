@@ -11,7 +11,7 @@
 :root{
   --paper:#EDF0F3; --surface:#FFFFFF; --surface-2:#F6F8F9; --ink:#0E2430; --ink-2:#3C5260;
   --ink-3:#6B7F8B; --line:#D3DBE1; --line-2:#E4EAEE;
-  --ochre:#B4762A; --ochre-soft:#F6EBD9;
+  --ochre:#C8102E; --ochre-soft:#F7D9DD; --amber:#B4762A; --amber-soft:#F6EBD9;
   --verified:#0E6F63; --verified-soft:#DCEDE9;
   --unverified:#A9741A; --unverified-soft:#F7EDD7;
   --ai:#5647C4; --ai-soft:#E9E6F9;
@@ -23,7 +23,7 @@
   :root:not([data-theme="light"]){
     --paper:#0B1820; --surface:#11242E; --surface-2:#152B36; --ink:#E7EEF2; --ink-2:#B4C6D0;
     --ink-3:#8299A6; --line:#26404D; --line-2:#1D3542;
-    --ochre:#D79A4C; --ochre-soft:#3A2C16;
+    --ochre:#E5484D; --ochre-soft:#3A1619; --amber:#D79A4C; --amber-soft:#3A2C16;
     --verified:#4EBBA8; --verified-soft:#0E3A35;
     --unverified:#D9A64A; --unverified-soft:#3A2E13;
     --ai:#9E90F5; --ai-soft:#251F4A;
@@ -35,7 +35,7 @@
 :root[data-theme="dark"]{
   --paper:#0B1820; --surface:#11242E; --surface-2:#152B36; --ink:#E7EEF2; --ink-2:#B4C6D0;
   --ink-3:#8299A6; --line:#26404D; --line-2:#1D3542;
-  --ochre:#D79A4C; --ochre-soft:#3A2C16;
+  --ochre:#E5484D; --ochre-soft:#3A1619; --amber:#D79A4C; --amber-soft:#3A2C16;
   --verified:#4EBBA8; --verified-soft:#0E3A35;
   --unverified:#D9A64A; --unverified-soft:#3A2E13;
   --ai:#9E90F5; --ai-soft:#251F4A;
@@ -132,7 +132,7 @@ hr.sep{border:0; border-top:1px solid var(--line-2); margin:14px 0}
 .tag{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 7px; border:1px solid var(--line); border-radius:2px; background:var(--surface-2); color:var(--ink-2); white-space:nowrap}
 .tag.alert{color:var(--alert); border-color:color-mix(in srgb,var(--alert) 40%,transparent); background:var(--alert-soft)}
 .tag.ok{color:var(--verified); border-color:color-mix(in srgb,var(--verified) 40%,transparent); background:var(--verified-soft)}
-.tag.due{color:var(--ochre); border-color:color-mix(in srgb,var(--ochre) 45%,transparent); background:var(--ochre-soft)}
+.tag.due{color:var(--amber); border-color:color-mix(in srgb,var(--amber) 45%,transparent); background:var(--amber-soft)}
 
 /* AI block */
 .aiblock{border:1px solid color-mix(in srgb,var(--ai) 32%,transparent); background:var(--ai-soft); border-radius:3px; padding:12px 13px}
@@ -153,7 +153,7 @@ tr.click{cursor:pointer}
 .score{display:inline-flex; align-items:baseline; gap:4px; font-weight:600; font-variant-numeric:tabular-nums}
 .bar{height:5px; background:var(--line-2); border-radius:3px; overflow:hidden; min-width:54px}
 .bar > span{display:block; height:100%; background:var(--ink-2)}
-.bar.hi > span{background:var(--verified)} .bar.mid > span{background:var(--ochre)} .bar.lo > span{background:var(--ink-3)}
+.bar.hi > span{background:var(--verified)} .bar.mid > span{background:var(--amber)} .bar.lo > span{background:var(--ink-3)}
 
 /* stat */
 .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line)}
@@ -172,7 +172,7 @@ tr.click{cursor:pointer}
 .lead:hover{border-color:var(--ink-3)}
 .lead b{display:block; font-size:13px}
 .lead .meta{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
-.lead.hot{border-left-color:var(--verified)} .lead.warm{border-left-color:var(--ochre)} .lead.cold{border-left-color:var(--ink-3)} .lead.risk{border-left-color:var(--alert)}
+.lead.hot{border-left-color:var(--verified)} .lead.warm{border-left-color:var(--amber)} .lead.cold{border-left-color:var(--ink-3)} .lead.risk{border-left-color:var(--alert)}
 
 /* holding lanes */
 .lanes{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:10px}
@@ -241,7 +241,7 @@ textarea.f{min-height:80px; resize:vertical}
   <div class="box">
     <div class="brandside">
       <div class="logo">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D79A4C" stroke-width="1.6"><path d="M2 17l10 4 10-4M2 12l10 4 10-4M12 3L2 7l10 4 10-4-10-4z"/></svg>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E5484D" stroke-width="1.6"><path d="M2 17l10 4 10-4M2 12l10 4 10-4M12 3L2 7l10 4 10-4-10-4z"/></svg>
         <div><b style="font-size:15px">TradeReach AI</b><span style="font-size:10px; color:#7D97A5; display:block; letter-spacing:.06em">ANWAR GROUP · EXPORT DEVELOPMENT</span></div>
       </div>
       <h1>One view of every export conversation.</h1>
@@ -279,7 +279,7 @@ textarea.f{min-height:80px; resize:vertical}
 <div class="app" id="app">
   <nav class="rail" id="rail">
     <div class="brand">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D79A4C" stroke-width="1.6"><path d="M2 17l10 4 10-4M2 12l10 4 10-4M12 3L2 7l10 4 10-4-10-4z"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E5484D" stroke-width="1.6"><path d="M2 17l10 4 10-4M2 12l10 4 10-4M12 3L2 7l10 4 10-4-10-4z"/></svg>
       <div><b>TradeReach AI</b><span>ANWAR GROUP</span></div>
     </div>
 

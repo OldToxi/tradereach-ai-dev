@@ -15,6 +15,8 @@ const config: Config = {
         'line-2': 'var(--line-2)',
         ochre: 'var(--ochre)',
         'ochre-soft': 'var(--ochre-soft)',
+        amber: 'var(--amber)',
+        'amber-soft': 'var(--amber-soft)',
         verified: 'var(--verified)',
         'verified-soft': 'var(--verified-soft)',
         unverified: 'var(--unverified)',
