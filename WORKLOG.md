@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`█████████████████████████░░░░░` **85%** — 66 of 78 tasks complete
+`██████████████████████████░░░░` **86%** — 67 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -37,7 +37,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 8 · Gmail connector | 5 | 5 ✓ |
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
-| 11 · Control surfaces | 0 | 5 |
+| 11 · Control surfaces | 1 | 5 |
 | 12 · Tests, docs, deploy | 0 | 6 |
 <!-- PROGRESS:END -->
 
@@ -890,21 +890,63 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T11.1 — /audit filterable, paginated, exportable; append-only proven
+- when: 2026-09-18 23:40 UTC
+- agent: opencode
+- files: lib/audit-view.ts, components/AuditScreen.tsx, app/(app)/audit/page.tsx,
+    app/api/audit/export/route.ts, tests/audit.test.ts
+- done: |
+    `lib/audit-view.ts` owns the read side (lib/audit.ts stays the write side): the
+    mock's five filter groups (`all`, `approvals`, `ai`, `field_changes`, `connector`,
+    `access`) + labels, the event→group map covering the whole `AUDIT` vocabulary,
+    `eventsInGroup()` for the `.in('event', …)` query, and CSV serialisation
+    (`auditRowsToCsvBody`, `ipToString` for the `inet` column's `unknown` type).
+    `app/(app)/audit/page.tsx` (server, `force-dynamic`) reads `group`/`page`
+    searchParams, runs a count + paged select through the user client (RLS `audit_read`
+    = any signed-in user), and pages 25 at a time.
+    `components/AuditScreen.tsx` (client) renders the Time/Actor/Event/Object/Detail/IP
+    table with `relativeTime`, the five-way filter dropdown, Prev/Next pagination, the
+    "Showing N–M of T" count line, and an Export link. `app/api/audit/export/route.ts`
+    streams the filtered trail as CSV (capped at 5000) with a SHA-256 footer and
+    `Content-Disposition` attachment header.
+    `tests/audit.test.ts` (8 tests) proves append-only two ways and tests the helpers:
+    it reads `0001_schema.sql`/`0002_rls.sql` and asserts the `audit_no_update` /
+    `audit_no_delete` `DO INSTEAD NOTHING` rules exist and that RLS grants no
+    insert/update/delete policy on `audit_event`; then it extracts the whole `AUDIT`
+    vocabulary from `lib/audit.ts` (read as text, so no admin import is needed in the
+    test) and asserts every event maps to exactly one non-`all` group with no gap and no
+    overlap, plus CSV escaping and `ipToString`.
+- verified: |
+    `npm run verify` green — 198 tests, 16 files (up from 190). Live proof against the
+    linked remote: selected seed audit row id 1, attempted `UPDATE` and `DELETE` via the
+    service role — both returned 0 rows with "cannot perform UPDATE/DELETE RETURNING on
+    relation audit_event" (the `DO INSTEAD NOTHING` rule firing) and `detail` was
+    unchanged afterward. So append-only holds even for the service role, since the rules
+    are query-rewrite rules, not RLS.
+- notes: no new AI prompt (aggregation/query only — consistent with AGENTS.md §5).
+    `lib/audit-view.ts` is importable from the client (no Supabase/admin import), which
+    is why the group/CSV helpers live there rather than in `lib/audit.ts`.
+- surprises: none. The append-only mechanism was exactly where the migration said it was;
+    the test proves it from source so it stays green on a fresh checkout, and the live
+    probe confirms it fires for the service role too.
+
+---
+
 ## Handoff
 
-**Status:** Phase 10 complete (7/7), migrations applied, types regenerated. Meetings,
-tasks, pipeline board, dashboard and the weekly read-out are all built, unit-tested, and
-the schema is live in the linked project. Next is Phase 11 (control surfaces, 5 tasks).
+**Status:** Phase 11 started. T11.1 (`/audit`) complete, tested, committed. Remaining in
+Phase 11: T11.2–T11.5 (4 of 5 tasks).
 
-- Last completed task: T10.1–T10.7 plus the addendum that applied migrations `0011` and
-  `0012` to the linked remote and regenerated `lib/database.types.ts`. `npm run verify`
-  green — 190 tests, 15 files.
-- Current task: none open — next code task is T11.1 (see PLAN.md). Note: T0.5 (Vercel
-  deploy, a human step) is still unchecked, so `npm run progress` reports "next: T0.5";
-  that does not block Phase 11.
-- Blocked on: nothing. The linked project is reachable; both pending migrations are
-  applied; types are regenerated. A live seeded end-to-end run of `/replies`,
-  `/meetings`, `/pipeline` and `/dashboard` is now possible.
+- Last completed task: T11.1 `/audit` — filterable, paginated, exportable trail with
+  append-only proven both from the migration source (unit test) and against the live DB
+  (service-role UPDATE/DELETE refused). `npm run verify` green — 198 tests, 16 files.
+- Current task: none open — next code task is T11.2 (`Settings → Users & roles`). Note:
+  T0.5 (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
+  "next: T0.5"; that does not block Phase 11.
+- Blocked on: nothing. The linked project is reachable; all migrations are applied.
+- New files this phase: `lib/audit-view.ts` (read-side grouping + CSV, client-safe — no
+  admin import), `components/AuditScreen.tsx`, `app/api/audit/export/route.ts`,
+  `tests/audit.test.ts`; `app/(app)/audit/page.tsx` replaced the placeholder.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -913,7 +955,7 @@ the schema is live in the linked project. Next is Phase 11 (control surfaces, 5 
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: Phases 2–10 committed (`d83b607` is Phase 10). No uncommitted changes.
+- Commit status: T11.1 committed. No uncommitted changes.
 - Next command for the next agent:
 
 ```
@@ -921,5 +963,5 @@ npm run verify
 npm run dev
 ```
 
-Then start T11.1 from PLAN.md. Phases 9 and 10 are complete, applied, and ready to demo.
+Then start T11.2 from PLAN.md.
 

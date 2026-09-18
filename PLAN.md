@@ -190,7 +190,7 @@ likely thing to go wrong.
 
 ## Phase 11 — Control surfaces
 
-- [ ] T11.1 `/audit` — filterable, paginated, exportable. Append-only proven by a test that
+- [x] T11.1 `/audit` — filterable, paginated, exportable. Append-only proven by a test that
       an update or delete is refused
 - [ ] T11.2 Settings → Users & roles: team table, invite, role and market assignment
 - [ ] T11.3 Settings → Scoring: weight sliders, thresholds, recalculation on save, history of
