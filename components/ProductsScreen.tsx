@@ -9,10 +9,12 @@ export function ProductsScreen({
   products,
   canEdit,
   marketFit,
+  companyCounts,
 }: {
   products: ProductView[]
   canEdit: boolean
   marketFit: Record<string, MarketFitSummary>
+  companyCounts: Record<string, number>
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(products[0]?.id ?? null)
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; product?: ProductView } | null>(null)
@@ -167,8 +169,17 @@ export function ProductsScreen({
               </>
             ) : (
               <p className="muted">
-                No research runs yet. Run research on a company from the Companies screen —
-                the fit scores land here, and no AI text is shown until a real run exists.
+                {(companyCounts[selected.id] ?? 0) === 0 ? (
+                  <>
+                    No companies are being worked for {selected.name.toLowerCase()} yet. Add one
+                    on the Companies screen and run its research — the fit scores land here.
+                  </>
+                ) : (
+                  <>
+                    Companies are on file but none are researched yet. Run research on a company
+                    from the Companies screen — no AI text is shown until a real run exists.
+                  </>
+                )}
               </p>
             )}
           </div>

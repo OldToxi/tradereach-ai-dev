@@ -49,14 +49,22 @@ export default async function ProductsPage() {
   }))
 
   const marketFit: Record<string, MarketFitSummary> = {}
+  const companyCounts: Record<string, number> = {}
   for (const p of products ?? []) {
+    const mine = (companies ?? []).filter((c) => c.product_id === p.id)
+    companyCounts[p.id] = mine.length
     const runs = (researchRuns ?? [])
-      .filter((r) => companyById.get(r.company_id)?.product_id === p.id)
+      .filter((r) => mine.some((c) => c.id === r.company_id))
       .map((r) => ({ market: companyById.get(r.company_id)!.market, score: r.score }))
     marketFit[p.id] = marketFitSummary(runs)
   }
 
   return (
-    <ProductsScreen products={list} canEdit={canManageCatalog(user.role)} marketFit={marketFit} />
+    <ProductsScreen
+      products={list}
+      canEdit={canManageCatalog(user.role)}
+      marketFit={marketFit}
+      companyCounts={companyCounts}
+    />
   )
 }
