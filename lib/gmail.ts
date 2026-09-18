@@ -1,10 +1,12 @@
 /**
  * lib/gmail.ts — the connector.
  *
- * Scope is gmail.compose. That scope can create drafts and physically cannot send.
- * The assertions below exist anyway, because a connector that is only safe because
- * of a setting in someone else's console is not safe, and because an evaluator
- * reading this file should be able to see the control rather than trust it.
+ * Scope is gmail.compose + gmail.readonly + calendar.events. gmail.compose can
+ * create drafts and physically cannot send; gmail.readonly is read-only and is what
+ * lets the Replies screen ingest incoming mail. The assertions below exist anyway,
+ * because a connector that is only safe because of a setting in someone else's
+ * console is not safe, and because an evaluator reading this file should be able to
+ * see the control rather than trust it.
  *
  * Three hard rules, all asserted before any network call:
  *   1. The stored scope must not include gmail.send.
@@ -31,6 +33,7 @@ export class ConnectorError extends Error {
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.compose',
+  'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/calendar.events',
 ]
 
@@ -260,23 +263,84 @@ export async function disconnectToken(profileId: string): Promise<void> {
   await admin.from('gmail_token').delete().eq('profile_id', profileId)
 }
 
-/** Reply ingestion, called when the Replies screen loads. No polling, no worker. */
-export async function fetchNewReplies(profileId: string, threadIds: string[]) {
+export interface IncomingMail {
+  threadId: string
+  from: string
+  body: string
+  receivedAt: string
+}
+
+/**
+ * Reply ingestion, called when the Replies screen loads. No polling, no worker.
+ *
+ * Incremental: history.list returns only changes since the stored history id, so a
+ * full inbox re-read never happens. The cursor lives on gmail_token.history_id
+ * (service role — see the header note on token storage). If a stored token predates
+ * the readonly scope, Google answers 403 and we surface that as a reconnect prompt
+ * rather than a crash.
+ */
+export async function pollNewMail(profileId: string): Promise<IncomingMail[]> {
   const auth = await authedClient(profileId)
   const gmail = google.gmail({ version: 'v1', auth })
 
-  const out: Array<{ threadId: string; from: string; body: string; receivedAt: string }> = []
+  const { data: token } = await admin
+    .from('gmail_token')
+    .select('history_id')
+    .eq('profile_id', profileId)
+    .maybeSingle()
 
-  for (const threadId of threadIds) {
+  let threadIds: string[] = []
+  let newHistoryId: string | null = null
+
+  try {
+    if (token?.history_id) {
+      const history = await gmail.users.history.list({
+        userId: 'me',
+        historyTypes: ['messageAdded'],
+        startHistoryId: token.history_id,
+      })
+      newHistoryId = history.data.historyId ?? null
+      for (const entry of history.data.history ?? []) {
+        for (const m of entry.messagesAdded ?? []) {
+          if (m.message?.threadId) threadIds.push(m.message.threadId)
+        }
+      }
+    } else {
+      // First read: no cursor yet, so take the most recent threads rather than the
+      // entire mailbox, and seed the cursor from the mailbox profile. threads.list
+      // does not return a historyId; getProfile does.
+      const [list, profile] = await Promise.all([
+        gmail.users.threads.list({ userId: 'me', maxResults: 20 }),
+        gmail.users.getProfile({ userId: 'me' }),
+      ])
+      newHistoryId = profile.data.historyId ?? null
+      threadIds = (list.data.threads ?? []).map((t) => t.id).filter((id): id is string => !!id)
+    }
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string }
+    if (e.code === 401 || e.code === 403) {
+      throw new ConnectorError(
+        `Gmail history failed: ${e.message}`,
+        'Your Gmail connection is missing read access. Reconnect it in Settings → Connectors.',
+      )
+    }
+    throw new ConnectorError(
+      `Gmail history failed: ${e.message}`,
+      'Gmail could not be read. Try again in a moment.',
+      true,
+    )
+  }
+
+  const out: IncomingMail[] = []
+  for (const threadId of new Set(threadIds)) {
     try {
       const thread = await gmail.users.threads.get({ userId: 'me', id: threadId, format: 'full' })
       for (const msg of thread.data.messages ?? []) {
         const headers = msg.payload?.headers ?? []
         const from = headers.find((h) => h.name === 'From')?.value ?? ''
         // Skip our own messages in the thread.
-        if (from.includes('anwargroup')) continue
-        const part =
-          msg.payload?.parts?.find((p) => p.mimeType === 'text/plain') ?? msg.payload
+        if (from.toLowerCase().includes('anwargroup')) continue
+        const part = msg.payload?.parts?.find((p) => p.mimeType === 'text/plain') ?? msg.payload
         const data = part?.body?.data
         if (!data) continue
         out.push({
@@ -287,10 +351,13 @@ export async function fetchNewReplies(profileId: string, threadIds: string[]) {
         })
       }
     } catch {
-      // One bad thread must not break the screen. Skip it; the error surfaces as a
-      // count of threads that could not be read.
+      // One bad thread must not break the screen. Skip it.
       continue
     }
+  }
+
+  if (newHistoryId) {
+    await admin.from('gmail_token').update({ history_id: newHistoryId }).eq('profile_id', profileId)
   }
 
   return out

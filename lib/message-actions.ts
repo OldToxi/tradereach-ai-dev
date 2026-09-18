@@ -64,14 +64,14 @@ async function attemptGmailDraft(
   if (!contact?.email) return fail('This contact has no email on record — cannot create a Gmail draft.')
 
   try {
-    const { draftId } = await createDraft({
+    const { draftId, threadId } = await createDraft({
       profileId: actor.id,
       from: `${actor.fullName} <${actor.email}>`,
       to: contact.email,
       subject: message.subject,
       body: message.human_body ?? message.ai_body,
     })
-    await supabase.from('message').update({ gmail_draft_id: draftId }).eq('id', messageId)
+    await supabase.from('message').update({ gmail_draft_id: draftId, gmail_thread_id: threadId }).eq('id', messageId)
     await writeAudit({
       actorId: actor.id,
       actorLabel: actor.fullName,

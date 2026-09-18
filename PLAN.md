@@ -156,17 +156,17 @@ likely thing to go wrong.
 
 ## Phase 9 — Replies and triage
 
-- [ ] T9.1 `lib/ai/prompts/triage.ts` v1 — category, intent, urgency, confidence, reasoning,
+- [x] T9.1 `lib/ai/prompts/triage.ts` v1 — category, intent, urgency, confidence, reasoning,
       next action. Eight categories from the mock
-- [ ] T9.2 Reply ingestion on page load via Gmail `history.list`, plus the
+- [x] T9.2 Reply ingestion on page load via Gmail `history.list`, plus the
       `Simulate an incoming reply` modal writing a reply tagged as test data
-- [ ] T9.3 `/replies` — inbox list, message viewer, classification panel, confidence,
+- [x] T9.3 `/replies` — inbox list, message viewer, classification panel, confidence,
       one-click reclassify that stores the correction
-- [ ] T9.4 Next-action panel with the five actions: draft response, escalate for pricing,
+- [x] T9.4 Next-action panel with the five actions: draft response, escalate for pricing,
       book a call, nurture, no further contact
-- [ ] T9.5 Split handling — a reply containing both an answerable and a reserved request
+- [x] T9.5 Split handling — a reply containing both an answerable and a reserved request
       produces a technical draft plus a commercial escalation. This is the demo's key moment
-- [ ] T9.6 Suppression: `no further contact` permanently blocks the address, cannot be undone
+- [x] T9.6 Suppression: `no further contact` permanently blocks the address, cannot be undone
       by import or by AI. SQL-enforced, with a test
 
 ---

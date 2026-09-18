@@ -310,18 +310,21 @@ export type Database = {
       }
       gmail_token: {
         Row: {
+          history_id: string | null
           profile_id: string
           refresh_token: string
           scope: string
           updated_at: string
         }
         Insert: {
+          history_id?: string | null
           profile_id: string
           refresh_token: string
           scope: string
           updated_at?: string
         }
         Update: {
+          history_id?: string | null
           profile_id?: string
           refresh_token?: string
           scope?: string
@@ -480,6 +483,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           gmail_draft_id: string | null
+          gmail_thread_id: string | null
           human_body: string | null
           id: string
           kind: string
@@ -503,6 +507,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           gmail_draft_id?: string | null
+          gmail_thread_id?: string | null
           human_body?: string | null
           id?: string
           kind: string
@@ -526,6 +531,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           gmail_draft_id?: string | null
+          gmail_thread_id?: string | null
           human_body?: string | null
           id?: string
           kind?: string
@@ -639,6 +645,7 @@ export type Database = {
       reply: {
         Row: {
           ai_run_id: string | null
+          answerable: string[]
           body: string
           category: Database["public"]["Enums"]["reply_category"] | null
           company_id: string
@@ -649,15 +656,23 @@ export type Database = {
             | null
           id: string
           intent: string | null
+          intent_note: string | null
           is_simulated: boolean
           message_id: string | null
+          next_action: string | null
+          next_action_owner: string | null
+          next_action_reasoning: string | null
           reasoning: string | null
           received_at: string
           recommended_action: string | null
+          reserved: Json
+          revisit_on: string | null
+          suggested_stage: Database["public"]["Enums"]["stage"] | null
           urgency: string | null
         }
         Insert: {
           ai_run_id?: string | null
+          answerable?: string[]
           body: string
           category?: Database["public"]["Enums"]["reply_category"] | null
           company_id: string
@@ -668,15 +683,23 @@ export type Database = {
             | null
           id?: string
           intent?: string | null
+          intent_note?: string | null
           is_simulated?: boolean
           message_id?: string | null
+          next_action?: string | null
+          next_action_owner?: string | null
+          next_action_reasoning?: string | null
           reasoning?: string | null
           received_at?: string
           recommended_action?: string | null
+          reserved?: Json
+          revisit_on?: string | null
+          suggested_stage?: Database["public"]["Enums"]["stage"] | null
           urgency?: string | null
         }
         Update: {
           ai_run_id?: string | null
+          answerable?: string[]
           body?: string
           category?: Database["public"]["Enums"]["reply_category"] | null
           company_id?: string
@@ -687,11 +710,18 @@ export type Database = {
             | null
           id?: string
           intent?: string | null
+          intent_note?: string | null
           is_simulated?: boolean
           message_id?: string | null
+          next_action?: string | null
+          next_action_owner?: string | null
+          next_action_reasoning?: string | null
           reasoning?: string | null
           received_at?: string
           recommended_action?: string | null
+          reserved?: Json
+          revisit_on?: string | null
+          suggested_stage?: Database["public"]["Enums"]["stage"] | null
           urgency?: string | null
         }
         Relationships: [

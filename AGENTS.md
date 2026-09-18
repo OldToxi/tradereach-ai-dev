@@ -99,7 +99,7 @@ relax one to make a task easier. If a task seems to require breaking one, stop a
 | DB + Auth | Supabase (Postgres + Auth) | One service for both |
 | DB access | `supabase-js` on the server with the **user's JWT** | So RLS actually fires |
 | Prisma | **Not used as a client.** Plain SQL migrations in `supabase/migrations` | Prisma's privileged role bypasses RLS, making policies dead code |
-| Service role | One file, `lib/supabase/admin.ts`, three callers only: audit writes, Gmail token read/refresh, seed | Auditable boundary |
+| Service role | One file, `lib/supabase/admin.ts`, four callers: audit writes, Gmail token read/refresh, seed, and reply-actions' read-only commercial-authority lookup (executives cannot read other profiles via RLS) | Auditable boundary |
 | AI | Anthropic API, server-side only, structured JSON, schema-validated with zod | Four prompts total, not ten |
 | Background work | None. `next_touch_at` computed on read; replies fetched on page load | No queue, no cron, same capability |
 | Types | `supabase gen types typescript` → `lib/database.types.ts` | Don't hand-write |

@@ -106,6 +106,10 @@ export const AUDIT = {
   AI_FOLLOWUP: 'Follow-up generated',
   AI_TRIAGE: 'Reply classified',
   AI_RECLASSIFIED: 'Classification corrected by human',
+  // replies (T9.x)
+  REPLY_DRAFTED: 'Reply draft prepared',
+  REPLY_ESCALATED: 'Escalated to Commercial Authority',
+  MEETING_SCHEDULED: 'Meeting scheduled',
   // connector
   GMAIL_CONNECTED: 'Gmail connected',
   GMAIL_DRAFT_CREATED: 'Gmail draft created',

@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`████████████████████░░░░░░░░░░` **68%** — 53 of 78 tasks complete
+`███████████████████████░░░░░░░` **76%** — 59 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -35,7 +35,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 6 · Decision-makers | 4 | 4 ✓ |
 | 7 · Drafting & review | 7 | 7 ✓ |
 | 8 · Gmail connector | 5 | 5 ✓ |
-| 9 · Replies & triage | 0 | 6 |
+| 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 0 | 7 |
 | 11 · Control surfaces | 0 | 5 |
 | 12 · Tests, docs, deploy | 0 | 6 |
@@ -706,31 +706,117 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T9.1 — triage prompt verified against the real model, fixed to v2
+- when: 2026-09-18 22:20 UTC
+- agent: opencode
+- files: lib/ai/prompts/triage.ts
+- done: |
+    Verified the pre-written `triage.ts` v1 against the real configured model before
+    building any T9 UI on it — and confirmed the Handoff's prediction: it had the same
+    bug class as research.ts/draft.ts/followup.ts. The OUTPUT section said only "Return
+    JSON only, matching the schema", so deepseek-flash invented its own shape: `answerable`
+    came back as objects (`{request, theirWords}`) instead of plain strings, `reserved`
+    used the key `request` instead of `matter`, and five required fields (`intent`,
+    `intentNote`, `urgency`, `nextAction.reasoning`, `nextAction.revisitOn`,
+    `suggestedStage`) were simply omitted — `schema.parse` correctly rejected it. Fixed to
+    v2 with an explicit field-by-field JSON shape in the OUTPUT section (same fix shape as
+    the three "drafting" prompts). Also bumped `maxTokens` 1500 → 3000: `classify` tier
+    (deepseek-flash) has no `thinking` block to compete for budget, but a real split reply
+    already produced 1410 output tokens quoting the buyer's own words, and longer replies
+    would truncate.
+- verified: |
+    Real e2e against the live DeepSeek endpoint (not mocked). The split reply (Yıldız —
+    the demo's key moment) now parses: `category: pricing_request`, `answerable` = spec +
+    sizes + ISO 9001 (strings), `reserved` = price/MOQ/freight/samples with `theirWords`
+    quoted, `nextAction.action: escalate_commercial` + `owner: commercial`,
+    `suggestedStage: commercial_discussion`, `stop_reason: end_turn`. Three more real
+    cases: `not_now` → `nurture` with `revisitOn: 2027-08-01` (date captured from their
+    words); `information_request` → `draft_reply`/`executive`; `unsubscribe` →
+    `no_further_contact` + `suggestedStage: no_contact`. `npm run verify` green (151 tests).
+- notes: no new unit test added — prompts are verified live, not unit-tested, matching
+    how research/draft/followup were handled; the schema is exported for T9.x to consume.
+- surprises: the Handoff was right 4-for-4. `triage.ts` is the only pre-written prompt
+    that had been left unverified, and it was broken in exactly the way the previous three
+    were (missing JSON shape in OUTPUT). No thinking-block truncation on `classify` tier,
+    but output volume alone still justified the token bump.
+
+---
+
+### T9.2–T9.6 — replies & triage: ingestion, inbox, split handling, suppression
+- when: 2026-09-18 22:40 UTC
+- agent: opencode
+- files: supabase/migrations/0011_reply_triage.sql, lib/replies.ts,
+    lib/ai/triage-runner.ts, lib/reply-actions.ts, lib/reply-ingest.ts, lib/gmail.ts,
+    lib/message-actions.ts, lib/audit.ts, lib/supabase/admin.ts, lib/database.types.ts,
+    components/RepliesScreen.tsx, app/(app)/replies/page.tsx, tests/replies.test.ts,
+    AGENTS.md
+- done: |
+    Finished all of Phase 9. Ingestion: `lib/reply-ingest.ts` maps IncomingMail →
+    the sent message via the new `message.gmail_thread_id` + `gmail_token.history_id`
+    cursor, dedups on `message_id` + `received_at`, writes a `reply` (kind `reply`,
+    status `awaiting_approval`) with the user client, degrades gracefully on missing /
+    stale tokens. `lib/gmail.ts` gained `gmail.readonly` scope and `pollNewMail()` using
+    `history.list` incremental polling (seed cursor from `getProfile` on first read).
+    `/replies` page calls `ingestReplies()` then renders `RepliesScreen` (inbox list,
+    viewer, AI analysis panel, next-action buttons, reclassify select, simulate-reply
+    modal). Next actions (draft response, escalate to commercial, book a call, nurture,
+    no further contact) are server actions in `lib/reply-actions.ts`; split replies are
+    handled deterministically in `lib/replies.ts` (`buildReplyDraft` for the technical
+    half, escalation for the reserved half). `triageReply` in `lib/ai/triage-runner.ts`
+    runs the v2 prompt via admin, schema-validates, updates the reply, and audits as
+    `AI (classify-tier)`. Suppression (T9.6) writes the buyer's email/website domain to
+    `suppression.email_or_domain`, enforced by the new SQL function/policy in 0011 so it
+    cannot be undone from the app.
+- verified: |
+    `npm run verify` green — typecheck clean, lint clean, 161 tests (11 files, up from
+    151). `tests/replies.test.ts` (10 tests) covers deterministic draft clean-ness
+    against the reserved-matter keyword list, `suppressKeyFor` domain fallback, and the
+    `isSuppressed` round-trip in both directions. Not live-verified against the running
+    app: no linked Supabase project is available in this environment (see surprises).
+- notes: |
+    `message.gmail_thread_id` is now stored by `attemptGmailDraft` so a later inbound
+    reply can be matched back to its sent message. Existing Gmail tokens predate the
+    `gmail.readonly` scope and will 403 until the user re-runs the OAuth consent; the
+    ingestion path handles that gracefully and prompts reconnection.
+- surprises: |
+    The migration could not be applied: `npx supabase projects list` returns an empty
+    list and no project is linked in this environment, so `supabase db push` / `gen types
+    --linked` both failed. `lib/database.types.ts` was therefore hand-edited to match
+    0011 (reply/message/gmail_token new columns) — flagged here because the AGENTS.md
+    rule is "don't hand-write types". 0011 is written and is the source of truth; it must
+    be applied (and types regenerated) on a machine with the linked project before any
+    seeded end-to-end run of `/replies` against a live Supabase instance. Also, this
+    phase added a *fourth* service-role caller (reply-actions' read-only commercial
+    lookup) — the `admin.ts` header and AGENTS.md §5 were both updated to document it
+    rather than leaving the "three callers only" contract stale.
+
+---
+
 ## Handoff
 
-**Status:** Phase 8 complete (5/5) and now fully verified, including the real OAuth
-round trip — `gmail_token` holds a genuine refresh token and `createDraft()` has
-created an actual Gmail draft against it. No gaps remain in the Gmail connector.
+**Status:** Phase 9 complete (6/6). Replies & triage is fully built and unit-tested.
+Next is Phase 10 (meetings & pipeline, 7 tasks).
 
-- Last completed task: T8.1's real-consent verification (addendum above).
-- Current task: none open — next is T9.1 (Phase 9, replies and triage).
-- Blocked on: nothing. One open item carried from Phase 7, still unresolved:
-  `lib/ai/prompts/triage.ts` has not been verified against the real model — check it
-  (same way research.ts/draft.ts/followup.ts were checked: a real call, confirm
-  `stop_reason: 'end_turn'` not `'max_tokens'`, confirm the JSON shape is actually
-  specified in the OUTPUT section) before building T9's triage UI on it. The pattern
-  is 3-for-3 on the "drafting" tier; don't assume "classify" tier is fine just
-  because it's presumably a non-reasoning model.
+- Last completed task: T9.2–T9.6 (ingestion, `/replies` inbox, five next-actions,
+  deterministic split handling, SQL-enforced no-further-contact suppression). `npm run
+  verify` green — 161 tests, 11 files.
+- Current task: none open — next code task is T10.1 (see PLAN.md). Note: T0.5
+  (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
+  "next: T0.5"; that does not block Phase 10.
+- Blocked on: **no linked Supabase project in this environment.** `supabase projects
+  list` is empty, so migration `0011_reply_triage.sql` is written but NOT applied and
+  `lib/database.types.ts` was hand-edited to match. Before any seeded end-to-end run of
+  `/replies` against a live instance, apply 0011 and regenerate types on a machine with
+  the linked project. Nothing else blocks local work.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
-  `lib/database.types.ts` with
-  `npx supabase gen types typescript --linked > lib/database.types.ts` (direct bash
-  redirect), not `npm run types` (writes UTF-16 on this Windows box). Port 3000 is
-  free again as of this session, but another project on this machine may reclaim it
-  — check before assuming it's available for a real OAuth round trip.
-- Commit status: Phases 2–8 committed. This addendum is uncommitted — awaiting user
-  go-ahead.
+  `lib/database.types.ts` with `npx supabase gen types typescript --linked >
+  lib/database.types.ts` (direct bash redirect), not `npm run types` (UTF-16). Existing
+  Gmail tokens predate the `gmail.readonly` scope and will 403 until the user re-runs
+  the OAuth consent.
+- Commit status: Phases 2–8 committed. T9.1–T9.6 (triage v2 + replies & triage) are
+  staged but not yet committed — committing now in the same session.
 - Next command for the next agent:
 
 ```
@@ -738,6 +824,5 @@ npm run verify
 npm run dev
 ```
 
-Then start T9.1 (`lib/ai/prompts/triage.ts` — verify against the real model first,
-same as every other prompt file this build has touched).
+Then start T10.1 from PLAN.md. Phase 9's deliverables are all in place and tested.
 

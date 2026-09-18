@@ -72,9 +72,13 @@ export type TriageOutput = z.infer<typeof triageSchema>
 
 export const triagePrompt: PromptSpec<TriageOutput> = {
   name: 'triage',
-  version: 'v1',
+  version: 'v2',
   tier: 'classify',
-  maxTokens: 1500,
+  // Long replies carry their own words into answerable/reserved, so the JSON output can
+  // grow with the input. 1500 was too tight once a reply quotes several requests (a real
+  // split reply already hit 1410 output tokens); leave headroom rather than risk a
+  // truncated object that would only fail the schema parse and cost a retry.
+  maxTokens: 3000,
   temperature: 0,
   schema: triageSchema,
   system: `You triage replies to Anwar Group's export outreach. You sort the message, decide
@@ -128,7 +132,33 @@ confident wrong classification is worse than an uncertain right one.
 
 OUTPUT
 
-Return JSON only, matching the schema.`,
+Return JSON only — no preamble, no markdown fences, no commentary, no extra keys — matching
+exactly this shape and these field names:
+
+{
+  "category": "buying_interest | information_request | pricing_request | not_now | wrong_person | not_interested | unsubscribe | auto_reply",
+  "intent": "positive | neutral | negative | none",
+  "intentNote": "one short clause on the tone behind that intent",
+  "urgency": "same_day | within_24h | within_week | none",
+  "confidence": 0.9,
+  "reasoning": "a few sentences explaining the classification; say plainly if a person should read this themselves",
+  "answerable": ["one plain string per request the export desk can answer, e.g. the specification they asked for"],
+  "reserved": [
+    { "matter": "the reserved commercial matter, e.g. price", "theirWords": "their exact words, quoted" }
+  ],
+  "nextAction": {
+    "action": "draft_reply | escalate_commercial | book_meeting | nurture | no_further_contact | find_new_contact | no_action",
+    "reasoning": "why this is the right next step",
+    "owner": "executive | manager | commercial",
+    "revisitOn": "ISO date, or null"
+  },
+  "suggestedStage": "reply | meeting | commercial_discussion | nurture | disqualified | no_contact"
+}
+
+Every field is required. answerable is an array of plain strings (never objects); reserved is
+an array of objects with exactly the two keys matter and theirWords. revisitOn is null unless
+the reply names a date. When reserved is non-empty, category is pricing_request and
+nextAction.action is escalate_commercial with owner "commercial".`,
 }
 
 export function triageUserMessage(args: {

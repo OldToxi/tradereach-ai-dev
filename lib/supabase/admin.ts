@@ -13,6 +13,12 @@
  * │ deliberate: prompt context is assembled server-side from facts the        │
  * │ requesting user has already been authorised to view by the calling page.  │
  * │ Always check access with the user client first, then build context.       │
+ * │                                                                          │
+ * │ lib/reply-actions.ts uses it for ONE read-only resolution: mapping the    │
+ * │ "commercial" role to a user id/name for escalation routing. Executives    │
+ * │ cannot read other profiles through RLS (see profiles_read_self_and_team), │
+ * │ so this lookup cannot go through the user client. It is a name/id read,   │
+ * │ not a write bypass — every write in that file still uses the user client. │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * If you are writing a page or an ordinary server action and reach for this file,
