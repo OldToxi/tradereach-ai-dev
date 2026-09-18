@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`████████████████████████████░░` **92%** — 72 of 78 tasks complete
+`████████████████████████████░░` **94%** — 73 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -38,7 +38,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
-| 12 · Tests, docs, deploy | 1 | 6 |
+| 12 · Tests, docs, deploy | 2 | 6 |
 <!-- PROGRESS:END -->
 
 Regenerate with `npm run progress`. Do not hand-edit between the markers.
@@ -1141,19 +1141,41 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     `tests/gmail-safety.test.ts`; not repeated here.
 - surprises: none blocking.
 
+### T12.2 — RLS tests (market scoping, approval, gmail_token)
+- when: 2026-09-19 00:27 UTC
+- agent: claude-code
+- files: tests/rls.test.ts
+- done: |
+    Added `tests/rls.test.ts` (9 tests) pinning the three RLS rules to the migration
+    SQL, the same source-text approach as `tests/audit.test.ts`: (1) an executive can
+    read only their assigned markets — `company_read` scopes through
+    `can_see_market(market)` (not a blanket signed-in check), `can_see_market` =
+    `sees_all_markets() or m = any(jwt_markets())`, `sees_all_markets()` excludes
+    executive, and `jwt_markets()` reads `app_metadata -> 'markets'`; (2) an executive
+    cannot approve — `can_approve()` is manager/commercial only, `message_update`
+    gates `status='approved'` on `can_approve() and approved_by = auth.uid()`, and
+    `message_insert` forbids a pre-approved row; (3) `gmail_token` has RLS on and zero
+    policies in any migration.
+- verified: |
+    `npm run verify` green — 254 tests, 23 files (up from 245/22).
+- notes: |
+    Source-text assertions again, not a live DB check: they make a future policy edit
+    that loosens a rule fail CI without needing a running Postgres. The `allMigrations()`
+    helper scans every `.sql` file for the gmail_token check, so a policy added in a
+    later migration can't slip past unnoticed.
+- surprises: none.
+
 ---
 
 ## Handoff
 
-**Status:** Phase 12 started. T12.1 complete. Next is T12.2 (RLS tests).
+**Status:** Phase 12 in progress. T12.1 and T12.2 complete. Next is T12.3 (Playwright).
 
-- Last completed task: T12.1 (unit tests). `npm run verify` green — 245 tests, 22 files
-  (up from 236/21). The four T12.1 areas are now all covered: scoring maths, guardrail
-  detection, cadence dates, provenance constraint violations.
-- Current task: none open — next code task is T12.2 (RLS tests: executive cannot read
-  another market, executive cannot approve, `gmail_token` unreadable by the user client).
+- Last completed task: T12.2 (RLS tests). `npm run verify` green — 254 tests, 23 files.
+- Current task: none open — next code task is T12.3 (Playwright: the twelve-step
+  demonstration journey from brief section 6, end to end).
 - Blocked on: nothing.
-- New files this task: `tests/provenance-constraints.test.ts`.
+- New files this task: `tests/rls.test.ts`.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1162,7 +1184,7 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: T12.1 not yet committed — commit next.
+- Commit status: T12.2 not yet committed — commit next.
 - Next command for the next agent:
 
 ```
@@ -1170,5 +1192,5 @@ npm run verify
 npm run progress
 ```
 
-Then start T12.2 from PLAN.md.
+Then start T12.3 from PLAN.md.
 

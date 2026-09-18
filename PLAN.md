@@ -206,7 +206,7 @@ likely thing to go wrong.
 
 - [x] T12.1 Unit tests: scoring maths, guardrail detection, cadence dates, provenance
       constraint violations
-- [ ] T12.2 RLS tests: executive cannot read another market, executive cannot approve,
+- [x] T12.2 RLS tests: executive cannot read another market, executive cannot approve,
       `gmail_token` unreadable by the user client
 - [ ] T12.3 Playwright: the twelve-step demonstration journey from brief section 6, end to end
 - [ ] T12.4 `README.md`: setup, deployment, architecture, database overview, stack rationale,
