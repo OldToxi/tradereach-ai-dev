@@ -204,7 +204,7 @@ likely thing to go wrong.
 
 ## Phase 12 — Tests, docs, deploy
 
-- [ ] T12.1 Unit tests: scoring maths, guardrail detection, cadence dates, provenance
+- [x] T12.1 Unit tests: scoring maths, guardrail detection, cadence dates, provenance
       constraint violations
 - [ ] T12.2 RLS tests: executive cannot read another market, executive cannot approve,
       `gmail_token` unreadable by the user client

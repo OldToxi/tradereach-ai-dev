@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`███████████████████████████░░░` **91%** — 71 of 78 tasks complete
+`████████████████████████████░░` **92%** — 72 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -38,7 +38,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
-| 12 · Tests, docs, deploy | 0 | 6 |
+| 12 · Tests, docs, deploy | 1 | 6 |
 <!-- PROGRESS:END -->
 
 Regenerate with `npm run progress`. Do not hand-edit between the markers.
@@ -1115,26 +1115,45 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     read the label from the configured list so the hold/review shows the manager's exact
     wording. Worth remembering: a slug is a key, not a label.
 
+### T12.1 — unit tests (scoring, guardrails, cadence, provenance constraints)
+- when: 2026-09-19 00:14 UTC
+- agent: claude-code
+- files: tests/provenance-constraints.test.ts
+- done: | 
+    Added `tests/provenance-constraints.test.ts` (9 tests) covering the other half of
+    T12.1. It reads `0001_schema.sql` and `0004_market_note.sql` as text and asserts the
+    DB CHECK constraints that enforce AGENTS.md §4 rules 1–4 actually exist: the four
+    provenance enum values; verified-needs-evidence (fact + contact + market-note forms);
+    ai-cannot-be-confirmed (fact + market-note forms); approved-needs-approver; and
+    held-needs-release. The three remaining T12.1 areas were already covered:
+    scoring maths (`tests/scoring.test.ts`), guardrail detection (`tests/guardrails.test.ts`,
+    `tests/guardrails-config.test.ts`), cadence dates (`tests/messages.test.ts`).
+- verified: |
+    `npm run verify` green — 245 tests, 22 files. First run failed: the multi-line
+    constraints kept a space inside `check (` and before the closing `)`, so the exact
+    regexes didn't match. Fixed by normalising the SQL text (collapse whitespace, then
+    strip whitespace adjacent to parens) in the test's `sql()` helper rather than
+    loosening the assertions.
+- notes: |
+    These are source-text assertions, not a live DB check — they pin the rules in the
+    migration so a future edit that drops a constraint fails CI even without a database.
+    Rule 5 (demo safety) is enforced server-side, not by a CHECK, so it lives in
+    `tests/gmail-safety.test.ts`; not repeated here.
+- surprises: none blocking.
+
 ---
 
 ## Handoff
 
-**Status:** Phase 11 complete. T11.1–T11.5 all done, tested, migration applied. Remaining
-work is Phase 12 (Tests, docs, deploy).
+**Status:** Phase 12 started. T12.1 complete. Next is T12.2 (RLS tests).
 
-- Last completed tasks: T11.4 (Settings → AI workflow) and T11.5 (Settings → Commercial
-  guardrails). `npm run verify` green — 236 tests, 21 files. Migration 0014 applied to the
-  remote and `lib/database.types.ts` regenerated (UTF-8, no BOM).
-- Current task: none open — next code task is T12.1 (unit tests for scoring maths,
-  guardrail detection, cadence dates, provenance constraint violations). Note: T0.5
-  (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
-  "next: T0.5"; that does not block Phase 12.
+- Last completed task: T12.1 (unit tests). `npm run verify` green — 245 tests, 22 files
+  (up from 236/21). The four T12.1 areas are now all covered: scoring maths, guardrail
+  detection, cadence dates, provenance constraint violations.
+- Current task: none open — next code task is T12.2 (RLS tests: executive cannot read
+  another market, executive cannot approve, `gmail_token` unreadable by the user client).
 - Blocked on: nothing.
-- New files this phase: `lib/ai/models.ts`, `lib/ai/workflow.ts`, `lib/system-config.ts`,
-  `lib/ai-config-actions.ts`, `lib/guardrails-config.ts`, `lib/guardrails-actions.ts`,
-  `components/AiWorkflowPane.tsx`, `components/GuardrailsPane.tsx`,
-  `supabase/migrations/0014_ai_guardrail_config.sql`, `tests/workflow.test.ts`,
-  `tests/system-config.test.ts`, `tests/guardrails-config.test.ts`.
+- New files this task: `tests/provenance-constraints.test.ts`.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1143,7 +1162,7 @@ work is Phase 12 (Tests, docs, deploy).
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: T11.4/T11.5 not yet committed — commit next.
+- Commit status: T12.1 not yet committed — commit next.
 - Next command for the next agent:
 
 ```
@@ -1151,5 +1170,5 @@ npm run verify
 npm run progress
 ```
 
-Then start T12.1 from PLAN.md.
+Then start T12.2 from PLAN.md.
 
