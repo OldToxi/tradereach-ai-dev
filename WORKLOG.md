@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`████████████████████████████░░` **95%** — 74 of 78 tasks complete
+`█████████████████████████████░` **96%** — 75 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -38,7 +38,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
-| 12 · Tests, docs, deploy | 3 | 6 |
+| 12 · Tests, docs, deploy | 4 | 6 |
 <!-- PROGRESS:END -->
 
 Regenerate with `npm run progress`. Do not hand-edit between the markers.
@@ -1196,19 +1196,46 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     dev-server restart cleared it. The running dev server had auto-selected port 3001
     (3000 was taken at the time), which is why `baseURL` defaults to 3001.
 
+### T12.4 — README (full project documentation)
+- when: 2026-09-19 01:05 UTC
+- agent: claude-code
+- files: README.md
+- done: |
+    Rewrote `README.md` from the "build bundle" stub (which still claimed "the
+    application is not built yet") into the full brief-§8 document: quick start + seed
+    users, scripts table, architecture (stack + decisions + service-role boundary +
+    directory layout), database overview (migrations, CHECK constraints, RLS, roles),
+    AI workflow (the four prompts), Gmail/Calendar connector integration, the
+    twelve-step demo journey, testing, completed vs incomplete features, known
+    limitations, next steps, and third-party disclosure.
+- verified: |
+    Fact-checked against the actual repo (package.json scripts, migration list, lib/
+    tree, seed data, SETUP.md, .env.example). No code changed, so `npm run verify` is
+    unchanged (254 tests, 23 files).
+- notes: |
+    `AUTH_MODE=live` is the shipped default in `.env.example`; `stub` is dev-only and
+    throws in production. Documented the deploy path as a human step (T12.5/T0.5) since
+    it needs Vercel access.
+- surprises: none.
+
 ---
 
 ## Handoff
 
-**Status:** Phase 12 in progress. T12.1, T12.2 and T12.3 complete. Next is T12.4
-(README).
+**Status:** Phase 12 in progress. T12.1–T12.4 complete. Next is T12.5 (deploy) then
+T12.6 (final pass).
 
-- Last completed task: T12.3 (Playwright twelve-step journey). `npx playwright test`
-  green; `npm run verify` green — 254 tests, 23 files.
-- Current task: none open — next code task is T12.4 (`README.md` per brief section 8).
-- Blocked on: nothing.
-- New files this task: `playwright.config.ts`, `e2e/twelve-step-journey.spec.ts`;
-  `vitest.config.ts` edited (exclude `e2e/**`).
+- Last completed task: T12.4 (`README.md`). Rewritten from the "build bundle" stub into
+  the full brief-§8 document: setup, deployment, architecture, DB overview, stack
+  rationale, AI workflow, connector integration, completed vs incomplete, known
+  limitations, next steps, third-party disclosure.
+- Current task: none open — next code task is T12.6 (final pass). T12.5 (deploy to
+  Vercel) is a human step gated on T0.5 (Vercel import + env vars); the agent cannot
+  complete it and should flag it.
+- Blocked on: T12.5 requires human Vercel access (import repo, set env vars,
+  `AUTH_MODE=live`, add the deployed domain to the Google redirect URIs). T0.5 is still
+  unchecked in PLAN.md.
+- New files this task: none (README.md rewritten).
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1220,12 +1247,14 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 - E2E notes: the Playwright CDN is unreachable here, so the suite uses the system Chrome
   (`channel: 'chrome'`); the dev server runs on port 3001 (`E2E_BASE_URL`). Run e2e with
   `npm run test:e2e` while `npm run dev` is up and the Supabase demo project is seeded.
-- Commit status: T12.3 not yet committed — commit next.
+- Commit status: T12.4 not yet committed — commit next.
 - Next command for the next agent:
 
 ```
 npm run progress
 ```
 
-Then start T12.4 from PLAN.md.
+Then do T12.6 (final pass): scan the repo for committed secrets, confirm `.env.example`
+is complete, and run a production `npm run build` to verify the stub-auth guard fails
+loudly (the build must NOT be run while `npm run dev` is running).
 

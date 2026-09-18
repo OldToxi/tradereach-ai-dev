@@ -209,7 +209,7 @@ likely thing to go wrong.
 - [x] T12.2 RLS tests: executive cannot read another market, executive cannot approve,
       `gmail_token` unreadable by the user client
 - [x] T12.3 Playwright: the twelve-step demonstration journey from brief section 6, end to end
-- [ ] T12.4 `README.md`: setup, deployment, architecture, database overview, stack rationale,
+- [x] T12.4 `README.md`: setup, deployment, architecture, database overview, stack rationale,
       AI workflow, connector integration, completed vs incomplete features, known
       limitations, next steps, third-party disclosure. Brief section 8 is the outline
 - [ ] T12.5 Deploy to Vercel, set `AUTH_MODE=live`, smoke-test the journey on the deployed URL
