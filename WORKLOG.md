@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`████████████████░░░░░░░░░░░░░░` **53%** — 41 of 78 tasks complete
+`██████████████████░░░░░░░░░░░░` **62%** — 48 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -33,7 +33,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 4 · Companies & research | 7 | 7 ✓ |
 | 5 · AI research pack | 6 | 6 ✓ |
 | 6 · Decision-makers | 4 | 4 ✓ |
-| 7 · Drafting & review | 0 | 7 |
+| 7 · Drafting & review | 7 | 7 ✓ |
 | 8 · Gmail connector | 0 | 5 |
 | 9 · Replies & triage | 0 | 6 |
 | 10 · Meetings & pipeline | 0 | 7 |
@@ -417,28 +417,163 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T7.1–T7.7 — drafting, guardrails, review queue, commercial release, follow-up cadence
+- when: 2026-09-18 21:16 UTC
+- agent: claude-code
+- files: supabase/migrations/0010_message_claims.sql, lib/database.types.ts (regen), lib/ai/prompts/draft.ts, lib/ai/prompts/followup.ts, lib/ai/draft-runner.ts, lib/messages.ts, lib/message-actions.ts, app/globals.css, app/(app)/review/page.tsx, components/ReviewScreen.tsx, components/CompanyDetailScreen.tsx, tests/messages.test.ts
+- done: |
+    Confirmed the Handoff's prediction: `draft.ts`/`followup.ts` had the exact same two
+    bugs T5.1–T5.6 found and fixed in `research.ts` (no JSON shape in the OUTPUT
+    section; `maxTokens` too low for `deepseek-v4-pro`'s `thinking` block). Fixed both
+    to v2 with an explicit schema and `maxTokens: 6000`, verified against the real
+    model before building anything on top (see T5's lesson — cheap insurance).
+
+    Worked out the message state machine from the schema's RLS/CHECK constraints
+    before writing code (documented at the top of `lib/messages.ts`): a draft is
+    inserted by `lib/ai/draft-runner.ts` (service role, like ai_run/research_run — the
+    third file alongside `client.ts`/`context.ts` that `admin.ts`'s header already
+    names as a deliberate exception) as `awaiting_approval` or, if the guardrail finds
+    something, directly as `held_commercial` — RLS's `message_insert` policy doesn't
+    even allow a *user* client to insert that status, so it can only happen this way.
+    From there: any write role can approve (manager/commercial) or reject; only a
+    commercial-role user can write `released_by` onto a `held_commercial` row (RLS);
+    the DB's `held_needs_release` CHECK — not RLS — is what actually stops a manager
+    from approving a released-but-still-reserved draft without that release. Editing a
+    draft re-runs the pattern-only guardrail pass and can clear a hold back to
+    `awaiting_approval` for any write role (nothing reserved is left once it's gone);
+    introducing new reserved language via edit is refused at the app level for anyone
+    but commercial, rather than let RLS reject it confusingly.
+
+    `lib/ai/draft-runner.ts`: `generateFirstTouch` refuses before any AI call if the
+    company has zero verified facts (see surprises — this is a product rule, not just
+    a token-budget one) or no verified primary contact, and refuses a second first-touch
+    for the same company. `generateFollowup` uses `nextTouchNumber` (stops on any reply,
+    caps at touch 3) and does NOT hard-block on the cadence due-date — that's shown as
+    information in the Send plan card, not enforced, so a reviewer can draft ahead of
+    time. `opens` is hardcoded to 0 (no open-tracking exists — see notes).
+
+    `lib/messages.ts` (pure, tested — 28 tests): word limits by touch, working-day
+    cadence (`addWorkingDays`/`cadenceFor`), the nine pre-send checks
+    (`buildPreSendChecks`), a market `send_window` text parser that fails OPEN when
+    unparseable (an operational courtesy check, not one of AGENTS.md's absolute
+    rules), the recipient allowlist predicate, claim/risk highlighting
+    (`highlightSegments` — risk spans come from the guardrail's own exact offsets and
+    always win on overlap; claim spans are best-effort `indexOf` since the model's
+    `claim` text is a paraphrase, not guaranteed verbatim), approximate claim-to-fact
+    resolution (`claimIsResolved`, deliberately over-catching per the codebase's
+    established guardrail philosophy), and `sha256` for the approval hash.
+
+    `/review`: real waiting list + detail pane, live-computed pre-send checks (not
+    stored — always reflects current fact/suppression/cadence state), inline
+    claim/risk highlighting in the actual email body, edit/approve/reject/request-changes,
+    and — for a held draft — a Commercial guardrail card with Release, visible only to
+    `canReleaseCommercial`. `CompanyDetailScreen`'s header gained a "Draft outreach"
+    button (`draftOutreach`) that tries `generateFirstTouch` first and falls back to
+    `generateFollowup` on "already exists", so one button serves both cases per company.
+- verified: |
+    `npm run verify` green (150 tests; `tests/messages.test.ts` = 28). `npm run build`
+    clean, all 17 routes (`/review` now real, 3.51 kB). Real e2e against the live
+    Supabase project and the configured DeepSeek endpoint — no part of the state
+    machine was taken on faith:
+    - Zero-verified-facts refusal fires before any AI call (Osaka Agri Textiles).
+    - A real first-touch draft generated end-to-end for Kyoto Green Materials (6
+      claims, correct schema) landed as `awaiting_approval` on one run and, on a
+      separate real run through the actual "Draft outreach" button in the browser,
+      landed `held_commercial` on `technical_compliance` — the model wrote "certified
+      to OEKO-TEX and ISO 9001", which the guardrail's deliberately-over-catching
+      pattern for compliance claims correctly flagged even though stating a held
+      certification is allowed; this is the system working as documented, and the
+      commercial-release flow exists exactly for this case.
+    - Re-drafting a company with an existing first-touch refuses; drafting a follow-up
+      for a company with a real reply (Yıldız, from seed) refuses with "has replied".
+    - RLS role gating, all confirmed by attempted writes, not just reasoning:
+      executive cannot approve (message_update RLS), executive cannot release a held
+      draft (0 rows affected), manager cannot approve a held-but-unreleased draft (DB
+      `held_needs_release` CHECK fires), commercial can release, manager can then
+      approve. Reject confirmed via direct RLS-scoped write.
+    - Browser session (real login, real clicks) as manager then commercial: the
+      "Draft outreach" button shows a pending state through a genuinely slow
+      (~40s) reasoning-model call, the review queue renders a REAL pre-existing
+      seeded draft (NordFiber, from `scripts/seed.ts`'s deliberately-reserved sample
+      offer) with the "sample" sentence correctly highlighted red and Approve
+      correctly `disabled` (DOM-checked) while checks block; switching to commercial
+      and clicking "Release for approval" persisted `released_by` and the UI updated
+      the guardrail card and the "No reserved commercial matter" check live.
+    - Found and fixed a real gap this way: the pre-send check list didn't know about
+      release, so a commercial user who had just released a draft still saw "No
+      reserved commercial matter" as blocking. Fixed `buildPreSendChecks` to treat
+      `guardrailClear || released` as passing — the release IS the authorisation.
+    Both test companies (Kyoto, and the disposable Osaka check) were left clean or
+    restored — no seed data was permanently altered.
+- notes: |
+    T7.5's "diff of human edits vs AI version kept" is satisfied at the data layer —
+    `ai_body` and `human_body` are both stored and neither is ever overwritten — but no
+    line-by-line diff view was built in the UI. Worth adding if a future phase's demo
+    journey calls for seeing the diff rendered, not just the two texts.
+
+    `assertNotSelfApproval` (lib/session.ts, pre-written for this phase) was
+    deliberately not wired in — every draft is AI-authored, not human-authored, and
+    the function's `draftedBy` parameter has no clean mapping onto that (the `message`
+    table has no "drafted by a person" column). If a future phase adds human-authored
+    drafts, this is where separation-of-duties should be enforced.
+
+    No `opens` tracking exists anywhere in the schema, so `followupUserMessage`'s
+    `opens` argument is hardcoded to 0. Real open tracking would need either a Gmail
+    read-receipt signal (T8) or a tracking pixel, neither of which exists yet — the
+    model still writes a reasonable follow-up without it, just without that one
+    signal.
+
+    `/outreach` ("Sent & follow-ups") was NOT built — PLAN's Phase 7 task list has no
+    task that owns it (T7.3 is specifically the review *queue*, not a sent-history
+    log), so it stays a placeholder. Likely belongs to Phase 10 or is implied by T8.3;
+    flagging so it isn't assumed done.
+- surprises: |
+    Confirmed the Handoff's prediction from the last entry: `draft.ts` and
+    `followup.ts` had the identical missing-JSON-schema and too-low-`maxTokens` bugs
+    `research.ts` had. Same fix shape both times (explicit field-by-field OUTPUT
+    section, `maxTokens: 6000`). This is now 3 for 3 on the "drafting" tier's prompts
+    needing this fix — `triage.ts` (T9.1, "classify" tier, a non-reasoning model per
+    the client.ts rate table) is the one prompt file left unverified; worth checking
+    on sight rather than assuming it's fine because it's a different tier.
+
+    A genuinely new finding, not predicted: drafting from a company with **zero**
+    verified facts doesn't just risk truncation (which the token bump already
+    guards against) — it makes deepseek-v4-pro spend its entire thinking budget
+    with NO output at all (`stop_reason: 'max_tokens'`, zero-length text block),
+    reproduced directly against the real API. Added a pre-flight refusal
+    (`context.facts.length === 0`) in `generateFirstTouch` rather than relying on the
+    token budget alone — this is also just correct product behaviour: the EVIDENCE
+    RULE means there is nothing to personalise with anyway.
+
+---
+
 ## Handoff
 
-**Status:** Phase 6 complete (4/4). `npm run verify` green (122 tests). Decision-makers
-are fully live: `/contacts` list, per-company Add/set-primary, the AI decision-maker
-recommendation, and the SQL-enforced named-contact gate before Outreach.
+**Status:** Phase 7 complete (7/7). `npm run verify` green (150 tests). Drafting,
+guardrails and the review queue are fully live end-to-end: draft generation (first
+touch + follow-up), the held/release/approve commercial state machine, live pre-send
+checks, and claim/risk highlighting all verified against the real Supabase project, a
+real AI call, and a real browser session across three roles.
 
-- Last completed task: T6.4 (all of T6.1–T6.4 shipped together in one pass).
-- Current task: none open — next is T7.1 (Phase 7, drafting/guardrails/review queue).
-- Blocked on: nothing technical.
-- Known issue carried into T7: `lib/ai/prompts/draft.ts` (`maxTokens: 1500`) and
-  `lib/ai/prompts/followup.ts` (`maxTokens: 1200`) use the same "drafting" tier
-  (`deepseek-v4-pro`, a reasoning model) that `research.ts` needed 6000 tokens for
-  before it would reliably finish (see the T5.1–T5.6 entry above). Both are almost
-  certainly going to truncate the same way research.ts did — check/fix their
-  `maxTokens` and confirm a real call completes (`stop_reason: 'end_turn'`, not
-  `'max_tokens'`) before building UI on top of either.
+- Last completed task: T7.7 (all of T7.1–T7.7 shipped together, plus fixing
+  draft.ts/followup.ts's inherited Phase-5-shaped bugs before building on them).
+- Current task: none open — next is T8.1 (Phase 8, Gmail connector).
+- Blocked on: **T8 needs you.** Gmail OAuth requires a real consent-screen round trip
+  — T0.2 says the Google Cloud OAuth client already exists, but I cannot complete
+  `consentUrl()` → Google's screen → callback myself without either your Google
+  account interacting with it once, or you handing me a way to drive that consent
+  screen. Flagging now so it isn't a surprise when T8.1 starts.
+- Known issue carried into T9: `lib/ai/prompts/triage.ts` is the last of the four
+  prompts not yet verified against the real model. It's the "classify" tier
+  (deepseek-flash, presumably not a reasoning model per client.ts's rate table, unlike
+  the three "drafting"-tier prompts that all needed the same fix) — but "presumably"
+  isn't "verified". Check it against a real call before building T9's triage UI on it.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
   `lib/database.types.ts` with `npx supabase gen types typescript --linked > lib/database.types.ts`
   (direct bash redirect), not `npm run types` (writes UTF-16 on this Windows box).
-- Commit status: Phases 2–5 committed. T6.1–T6.4 changes are uncommitted — awaiting
+- Commit status: Phases 2–6 committed. T7.1–T7.7 changes are uncommitted — awaiting
   user go-ahead.
 - Next command for the next agent:
 
@@ -447,5 +582,7 @@ npm run verify
 npm run dev
 ```
 
-Then start T7.1 (`lib/ai/prompts/draft.ts` v1 — subject, body, `why[]`, `claims_used[]`), checking its `maxTokens` first.
+Then start T8.1 (Gmail OAuth: connect, callback, refresh token stored in
+`gmail_token`) — but read the "Blocked on" line above first and raise it with the
+user before assuming this can be finished unattended.
 

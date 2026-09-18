@@ -122,19 +122,19 @@ likely thing to go wrong.
 
 ## Phase 7 — Drafting, guardrails, review queue
 
-- [ ] T7.1 `lib/ai/prompts/draft.ts` v1 — returns subject, body, `why[]`, `claims_used[]`.
+- [x] T7.1 `lib/ai/prompts/draft.ts` v1 — returns subject, body, `why[]`, `claims_used[]`.
       Context: verified facts + product capability sheet only
-- [ ] T7.2 `lib/guardrails.ts` — reserved-matter detection on meaning, not keywords. Returns
+- [x] T7.2 `lib/guardrails.ts` — reserved-matter detection on meaning, not keywords. Returns
       matched matter + the offending sentence. Unit tests including
       "what would a container land at" → pricing
-- [ ] T7.3 `/review` queue: waiting list, message viewer, claim highlighting
+- [x] T7.3 `/review` queue: waiting list, message viewer, claim highlighting
       (`why` = verified claim, `risk` = reserved matter), `Why this message` panel
-- [ ] T7.4 Pre-send checks panel — nine checks from the mock, each pass/hold, blocking
-- [ ] T7.5 Approve / request changes / reject. Approve writes `approved_by`, the exact text,
+- [x] T7.4 Pre-send checks panel — nine checks from the mock, each pass/hold, blocking
+- [x] T7.5 Approve / request changes / reject. Approve writes `approved_by`, the exact text,
       a hash of it, and an audit row. Diff of human edits vs AI version kept
-- [ ] T7.6 Commercial release flow: held draft → request release → `commercial` role
+- [x] T7.6 Commercial release flow: held draft → request release → `commercial` role
       approves → unblocks. Executives cannot self-approve
-- [ ] T7.7 `lib/ai/prompts/followup.ts` v1 + cadence: touch 2 at +4 working days, touch 3 at
+- [x] T7.7 `lib/ai/prompts/followup.ts` v1 + cadence: touch 2 at +4 working days, touch 3 at
       +11, then nurture. `next_touch_at` computed, follow-ups stop on any reply
 
 ---

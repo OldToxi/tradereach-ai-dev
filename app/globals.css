@@ -193,6 +193,14 @@
   .rowlink { color: inherit; text-decoration: none; }
   .rowlink:hover { text-decoration: underline; }
 
+  .mail { border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+  .mail .hd { padding: 11px 13px; border-bottom: 1px solid var(--line-2); display: grid; gap: 4px; font-size: 13px; }
+  .mail .hd .row { display: flex; gap: 8px; }
+  .mail .hd .row span { color: var(--ink-3); width: 52px; flex: none; }
+  .mail .bd { padding: 14px 15px; font-size: 13.5px; line-height: 1.65; white-space: pre-wrap; }
+  mark.why { background: var(--verified-soft); border-bottom: 1.5px solid var(--verified); color: inherit; padding: 0 1px; }
+  mark.risk { background: var(--alert-soft); border-bottom: 1.5px solid var(--alert); color: inherit; padding: 0 1px; }
+
   .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
   .tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--ink-3); white-space: nowrap; cursor: pointer; font-family: inherit; font-size: 13px; }
   .tabs button.on { color: var(--ink); border-bottom-color: var(--ochre); font-weight: 500; }

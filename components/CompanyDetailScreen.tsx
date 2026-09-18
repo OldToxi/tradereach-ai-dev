@@ -24,6 +24,7 @@ import {
   type ResearchDepth,
 } from '@/lib/research'
 import { addContact, setPrimaryContact } from '@/lib/contact-actions'
+import { draftOutreach } from '@/lib/message-actions'
 import {
   contactGateBlocks,
   contactGateReason,
@@ -215,6 +216,7 @@ export function CompanyDetailScreen({
               <button className="btn btn-sm btn-warn" onClick={() => setDisqualifyOpen(true)}>
                 Disqualify
               </button>
+              <DraftOutreachButton company={company} />
             </div>
           ) : null}
           <div className="tiny muted">
@@ -291,6 +293,54 @@ function NurtureButton({ company }: { company: CompanyDetail }) {
         {pending ? '…' : 'Nurture'}
       </button>
     </form>
+  )
+}
+
+function DraftOutreachButton({ company }: { company: CompanyDetail }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function run() {
+    setPending(true)
+    setError(null)
+    const fd = new FormData()
+    fd.set('companyId', company.id)
+    const res = await draftOutreach(fd)
+    setPending(false)
+    if (res.ok) {
+      router.push(`/review?id=${res.messageId}`)
+    } else {
+      setError(res.error ?? 'Could not draft outreach.')
+    }
+  }
+
+  return (
+    <span style={{ position: 'relative' }}>
+      <button className="btn btn-sm btn-pri" onClick={run} disabled={pending}>
+        {pending ? 'Drafting…' : 'Draft outreach'}
+      </button>
+      {error ? (
+        <span
+          className="small"
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: 4,
+            color: 'var(--alert)',
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: 3,
+            padding: '6px 9px',
+            whiteSpace: 'nowrap',
+            zIndex: 10,
+          }}
+        >
+          {error}
+        </span>
+      ) : null}
+    </span>
   )
 }
 

@@ -33,9 +33,16 @@ export type DraftOutput = z.infer<typeof draftSchema>
 
 export const draftPrompt: PromptSpec<DraftOutput> = {
   name: 'draft',
-  version: 'v1',
+  version: 'v2',
   tier: 'drafting',
-  maxTokens: 1500,
+  // See lib/ai/prompts/research.ts's maxTokens comment: the configured "drafting"
+  // model (deepseek-v4-pro) is a reasoning model whose internal `thinking` block
+  // competes with the JSON output for this budget. 1500 was silently truncating
+  // every real call before any body text was emitted. A thin/empty VERIFIED FACTS
+  // section makes the model think especially long (it has almost nothing to work
+  // with) — lib/ai/draft-runner.ts now refuses to draft with zero verified facts for
+  // exactly this reason, but the budget is kept generous regardless.
+  maxTokens: 6000,
   temperature: 0.5,
   schema: draftSchema,
   system: `You write first-contact export emails for Anwar Group, a Bangladeshi manufacturer.
@@ -91,8 +98,17 @@ short greeting in that language, then continue in English.
 
 OUTPUT
 
-Return JSON only, matching the schema. The body is plain text with line breaks, no HTML,
-no markdown.`,
+Return JSON only — no preamble, no markdown fences, no commentary, no extra keys — matching
+exactly this shape and these field names:
+
+{
+  "subject": "10-90 characters",
+  "body": "plain text with line breaks, no HTML, no markdown, under 140 words",
+  "why": ["3-6 short reasons this message fits this company"],
+  "claimsUsed": [ { "claim": "the factual sentence or clause", "fromFact": "the verified fact key or product field it came from" } ],
+  "question": "the single question the email asks, or empty string if none",
+  "wordCount": 0
+}`,
 }
 
 export function draftUserMessage(args: {

@@ -28,9 +28,11 @@ export type FollowupOutput = z.infer<typeof followupSchema>
 
 export const followupPrompt: PromptSpec<FollowupOutput> = {
   name: 'followup',
-  version: 'v1',
+  version: 'v2',
   tier: 'drafting',
-  maxTokens: 1200,
+  // See lib/ai/prompts/research.ts's maxTokens comment — deepseek-v4-pro's internal
+  // `thinking` block competes with the JSON output for this budget. 1200 was too low.
+  maxTokens: 6000,
   temperature: 0.5,
   schema: followupSchema,
   system: `You write follow-up emails for Anwar Group's export desk. The reader received an
@@ -63,7 +65,18 @@ appointment, warranty or compliance claims — including softened or conditional
 
 OUTPUT
 
-Return JSON only, matching the schema. Plain text body.`,
+Return JSON only — no preamble, no markdown fences, no commentary, no extra keys — matching
+exactly this shape and these field names:
+
+{
+  "subject": "5-90 characters",
+  "body": "plain text with line breaks, no HTML, no markdown",
+  "newAngle": "what this touch adds that the first email did not",
+  "why": ["2-4 short reasons"],
+  "claimsUsed": [ { "claim": "...", "fromFact": "..." } ],
+  "wordCount": 0,
+  "recommendStopping": false
+}`,
 }
 
 export function followupUserMessage(args: {

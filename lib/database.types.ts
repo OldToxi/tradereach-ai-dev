@@ -475,6 +475,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           approved_hash: string | null
+          claims_used: Json
           company_id: string
           contact_id: string | null
           created_at: string
@@ -497,6 +498,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           approved_hash?: string | null
+          claims_used?: Json
           company_id: string
           contact_id?: string | null
           created_at?: string
@@ -519,6 +521,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           approved_hash?: string | null
+          claims_used?: Json
           company_id?: string
           contact_id?: string | null
           created_at?: string
