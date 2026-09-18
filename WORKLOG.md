@@ -677,37 +677,60 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T8.1 addendum — real OAuth consent round trip completed
+- when: 2026-09-18 22:05 UTC
+- agent: claude-code + user (the one step only a human could do)
+- files: none (verification only, no code changed)
+- done: |
+    The one gap left open by the T8.1–T8.5 entry above: the user freed port 3000
+    (stopped an unrelated dev server for a different project, `D:\Anwar
+    TradeReach\traderach`, with explicit go-ahead), TradeReach's dev server was
+    started there to match the fixed `GOOGLE_REDIRECT_URI`, and the user completed
+    Google's real consent screen as Rifat Hasan.
+- verified: |
+    `gmail_token` now holds a real refresh token for Rifat (confirmed via
+    `getConnectionStatus` — `connected: true`, correct compose+calendar scope,
+    real timestamp). Then went one step further than "connected": called
+    `createDraft()` for real against this live connection — it genuinely created a
+    Gmail draft (`draftId`/`threadId` returned by the real Gmail API) in Rifat's
+    actual Drafts folder, addressed to a `.test` recipient, clearly subject-lined as
+    a safe-to-delete verification draft. This was the one piece of Phase 8 that
+    could not be verified before (createDraft's happy path, as opposed to its
+    precondition checks). Phase 8 is now verified end-to-end with no remaining gaps.
+- notes: the verification draft was left in place rather than auto-deleted — deleting
+    from a real, external mailbox is the kind of action this build asks for
+    confirmation before taking, even for something it created itself. The user can
+    remove it directly in Gmail, or ask for a delete script.
+- surprises: none — every piece of code the earlier entry predicted would work,
+    given a real token, did.
+
+---
+
 ## Handoff
 
-**Status:** Phase 8 complete (5/5). `npm run verify` green (151 tests). The Gmail
-connector is fully wired: OAuth connect/callback/disconnect, approve→draft creation
-with graceful failure/retry, and Settings→Connectors — everything downstream of a
-completed consent screen is proven correct; the consent screen itself needs you.
+**Status:** Phase 8 complete (5/5) and now fully verified, including the real OAuth
+round trip — `gmail_token` holds a genuine refresh token and `createDraft()` has
+created an actual Gmail draft against it. No gaps remain in the Gmail connector.
 
-- Last completed task: T8.5 (all of T8.1–T8.5 shipped together in one pass).
+- Last completed task: T8.1's real-consent verification (addendum above).
 - Current task: none open — next is T9.1 (Phase 9, replies and triage).
-- Blocked on: nothing technical for T9. One open item carried from Phase 7, still
-  unresolved: `lib/ai/prompts/triage.ts` has not been verified against the real
-  model — check it (same way research.ts/draft.ts/followup.ts were checked: a real
-  call, confirm `stop_reason: 'end_turn'` not `'max_tokens'`, confirm the JSON shape
-  is actually specified in the OUTPUT section) before building T9's triage UI on it.
-  Given the pattern is now 3-for-3 on the "drafting" tier, don't assume "classify"
-  tier is fine just because it's presumably a non-reasoning model.
-- Real Gmail connection still not completed: whenever you're free to click through
-  Google's consent screen once (as any seeded user, e.g. Rifat), that closes the one
-  remaining gap in Phase 8 — every piece of code on both sides of that click is
-  already verified.
-- Operational notes (unchanged, plus one new): do NOT run `npm run build` while
-  `npm run dev` is running (clobbers `.next`). `npm run seed` does not load
-  `.env.local`; use `npx tsx --env-file=.env.local scripts/seed.ts --reset`.
-  Regenerate `lib/database.types.ts` with
+- Blocked on: nothing. One open item carried from Phase 7, still unresolved:
+  `lib/ai/prompts/triage.ts` has not been verified against the real model — check it
+  (same way research.ts/draft.ts/followup.ts were checked: a real call, confirm
+  `stop_reason: 'end_turn'` not `'max_tokens'`, confirm the JSON shape is actually
+  specified in the OUTPUT section) before building T9's triage UI on it. The pattern
+  is 3-for-3 on the "drafting" tier; don't assume "classify" tier is fine just
+  because it's presumably a non-reasoning model.
+- Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
+  running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
+  `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
+  `lib/database.types.ts` with
   `npx supabase gen types typescript --linked > lib/database.types.ts` (direct bash
-  redirect), not `npm run types` (writes UTF-16 on this Windows box). New: port 3000
-  is occupied by an unrelated dev server on this machine — use a different port for
-  `npm run dev` during testing, but remember `GOOGLE_REDIRECT_URI` is fixed at port
-  3000, so a *real* OAuth round trip specifically needs whatever serves that port.
-- Commit status: Phases 2–7 committed. T8.1–T8.5 changes are uncommitted — awaiting
-  user go-ahead.
+  redirect), not `npm run types` (writes UTF-16 on this Windows box). Port 3000 is
+  free again as of this session, but another project on this machine may reclaim it
+  — check before assuming it's available for a real OAuth round trip.
+- Commit status: Phases 2–8 committed. This addendum is uncommitted — awaiting user
+  go-ahead.
 - Next command for the next agent:
 
 ```
