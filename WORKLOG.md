@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`████████████████████████████░░` **94%** — 73 of 78 tasks complete
+`████████████████████████████░░` **95%** — 74 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -38,7 +38,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
-| 12 · Tests, docs, deploy | 2 | 6 |
+| 12 · Tests, docs, deploy | 3 | 6 |
 <!-- PROGRESS:END -->
 
 Regenerate with `npm run progress`. Do not hand-edit between the markers.
@@ -1165,17 +1165,50 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     later migration can't slip past unnoticed.
 - surprises: none.
 
+### T12.3 — Playwright twelve-step demonstration journey
+- when: 2026-09-19 00:45 UTC
+- agent: claude-code
+- files: playwright.config.ts, e2e/twelve-step-journey.spec.ts, vitest.config.ts
+- done: |
+    Added a Playwright suite that walks the twelve-step demo journey from brief §6 end
+    to end, read-only (never fires a live AI call or a send): (1) sign in as the Export
+    Manager (rifat), (2) dashboard KPIs, (3) open the review queue, (4) see the NordFiber
+    draft waiting, (5) the samples guardrail highlights the reserved "sample" sentence as
+    risk, (6) approval is blocked by the "No reserved commercial matter" pre-send check,
+    (7) open replies, (8) inspect the Yıldız reply — the technical/commercial split
+    (spec + price + payment terms in one email), (9) it is untriaged awaiting a next
+    action, (10) browse companies, (11) opportunity pipeline board, (12) audit trail.
+    `vitest.config.ts` now excludes `e2e/**` so the Playwright spec is not collected by
+    `vitest run`.
+- verified: |
+    `npx playwright test` green (1 passed). `npm run verify` still green — 254 tests,
+    23 files (the e2e spec is correctly excluded from Vitest).
+- notes: |
+    The Playwright browser CDN (cdn.playwright.dev) is unreachable from this network, so
+    the config runs against the system Chrome via `channel: 'chrome'` (override with
+    `E2E_CHANNEL=chromium` after `npx playwright install`). The suite assumes a running
+    dev server and a seeded Supabase project; `baseURL` defaults to
+    `http://localhost:3001` (override with `E2E_BASE_URL`). The journey asserts the
+    seeded mid-journey state (NordFiber sample-offer draft, Yıldız untriaged split
+    reply), so re-running the seed keeps it deterministic.
+- surprises: |
+    A stale `next dev` server threw `ChunkLoadError` on the companies page mid-run; a
+    dev-server restart cleared it. The running dev server had auto-selected port 3001
+    (3000 was taken at the time), which is why `baseURL` defaults to 3001.
+
 ---
 
 ## Handoff
 
-**Status:** Phase 12 in progress. T12.1 and T12.2 complete. Next is T12.3 (Playwright).
+**Status:** Phase 12 in progress. T12.1, T12.2 and T12.3 complete. Next is T12.4
+(README).
 
-- Last completed task: T12.2 (RLS tests). `npm run verify` green — 254 tests, 23 files.
-- Current task: none open — next code task is T12.3 (Playwright: the twelve-step
-  demonstration journey from brief section 6, end to end).
+- Last completed task: T12.3 (Playwright twelve-step journey). `npx playwright test`
+  green; `npm run verify` green — 254 tests, 23 files.
+- Current task: none open — next code task is T12.4 (`README.md` per brief section 8).
 - Blocked on: nothing.
-- New files this task: `tests/rls.test.ts`.
+- New files this task: `playwright.config.ts`, `e2e/twelve-step-journey.spec.ts`;
+  `vitest.config.ts` edited (exclude `e2e/**`).
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1184,13 +1217,15 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: T12.2 not yet committed — commit next.
+- E2E notes: the Playwright CDN is unreachable here, so the suite uses the system Chrome
+  (`channel: 'chrome'`); the dev server runs on port 3001 (`E2E_BASE_URL`). Run e2e with
+  `npm run test:e2e` while `npm run dev` is up and the Supabase demo project is seeded.
+- Commit status: T12.3 not yet committed — commit next.
 - Next command for the next agent:
 
 ```
-npm run verify
 npm run progress
 ```
 
-Then start T12.3 from PLAN.md.
+Then start T12.4 from PLAN.md.
 
