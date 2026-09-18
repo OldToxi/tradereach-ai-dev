@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`█████████████████████████████░` **96%** — 75 of 78 tasks complete
+`█████████████████████████████░` **97%** — 76 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -38,7 +38,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
-| 12 · Tests, docs, deploy | 4 | 6 |
+| 12 · Tests, docs, deploy | 5 | 6 |
 <!-- PROGRESS:END -->
 
 Regenerate with `npm run progress`. Do not hand-edit between the markers.
@@ -1218,24 +1218,48 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
     it needs Vercel access.
 - surprises: none.
 
+### T12.6 — Final pass (secrets, env completeness, stub-auth guard)
+- when: 2026-09-19 01:20 UTC
+- agent: claude-code
+- files: .env.example
+- done: |
+    Ran the final pass: (1) scanned tracked files for secrets — clean (the only match is
+    the empty `SUPABASE_SERVICE_ROLE_KEY=` template line in `.env.example`); `.env` and
+    `.env.local` are gitignored and untracked. (2) Added the optional `SEED_PASSWORD` and
+    the `E2E_BASE_URL`/`E2E_CHANNEL` overrides to `.env.example` so it documents every
+    variable the code actually reads. (3) Verified the stub-auth guard in a production
+    build: `npm run build` with `AUTH_MODE=live` succeeds (all app routes dynamic,
+    login/root static); with `AUTH_MODE=stub` the build fails during page-data collection
+    with `AUTH_MODE=stub is set in a production build. Refusing to start.` — exactly the
+    AGENTS.md §4.8 "fail loudly" behaviour.
+- verified: |
+    `npm run build` (AUTH_MODE=live) clean; `AUTH_MODE=stub` build exits 1 with the guard
+    error. `npm run verify` unchanged (254 tests, 23 files). Secret scan clean.
+- notes: |
+    T12.5 (deploy to Vercel) and T0.5 (import repo + set env vars) are human steps that
+    need Vercel/GitHub access and are left unchecked. This is the last agent-able task:
+    the repo is now 76/78 with only those two human deploy tasks outstanding.
+- surprises: none.
+
 ---
 
 ## Handoff
 
-**Status:** Phase 12 in progress. T12.1–T12.4 complete. Next is T12.5 (deploy) then
-T12.6 (final pass).
+**Status:** Phase 12 complete except the two human deploy steps. All agent-able work is
+done (76/78). The only outstanding tasks are `T0.5` and `T12.5`, which require a human
+with GitHub/Vercel/Google access.
 
-- Last completed task: T12.4 (`README.md`). Rewritten from the "build bundle" stub into
-  the full brief-§8 document: setup, deployment, architecture, DB overview, stack
-  rationale, AI workflow, connector integration, completed vs incomplete, known
-  limitations, next steps, third-party disclosure.
-- Current task: none open — next code task is T12.6 (final pass). T12.5 (deploy to
-  Vercel) is a human step gated on T0.5 (Vercel import + env vars); the agent cannot
-  complete it and should flag it.
-- Blocked on: T12.5 requires human Vercel access (import repo, set env vars,
-  `AUTH_MODE=live`, add the deployed domain to the Google redirect URIs). T0.5 is still
-  unchecked in PLAN.md.
-- New files this task: none (README.md rewritten).
+- Last completed task: T12.6 (final pass). `npm run verify` green (254 tests, 23 files);
+  `npx playwright test` green; `npm run build` green with `AUTH_MODE=live`; the
+  stub-auth guard verified failing loudly under `AUTH_MODE=stub` in a production build.
+- Current task: none open for an agent. T12.5 (deploy to Vercel) and T0.5 (import repo +
+  set env vars) are human steps.
+- Blocked on (human): create the GitHub repo and import it into Vercel (`SETUP.md` step
+  1 and 5), set every `.env.example` variable, set `AUTH_MODE=live` (never `stub`), then
+  add the deployed Vercel domain to the Google OAuth redirect URIs. Smoke-test the
+  twelve-step journey on the deployed URL.
+- New files this task: none (`.env.example` gained optional `SEED_PASSWORD` +
+  `E2E_*` entries; README/PLAN/WORKLOG updated).
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1247,14 +1271,13 @@ T12.6 (final pass).
 - E2E notes: the Playwright CDN is unreachable here, so the suite uses the system Chrome
   (`channel: 'chrome'`); the dev server runs on port 3001 (`E2E_BASE_URL`). Run e2e with
   `npm run test:e2e` while `npm run dev` is up and the Supabase demo project is seeded.
-- Commit status: T12.4 not yet committed — commit next.
-- Next command for the next agent:
+- Commit status: T12.6 not yet committed — commit next.
+- Next command for the next agent (or human):
 
 ```
 npm run progress
 ```
 
-Then do T12.6 (final pass): scan the repo for committed secrets, confirm `.env.example`
-is complete, and run a production `npm run build` to verify the stub-auth guard fails
-loudly (the build must NOT be run while `npm run dev` is running).
+The repo is functionally complete. What remains is deployment, which is documented in
+`SETUP.md` and `README.md`.
 

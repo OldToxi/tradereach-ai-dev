@@ -213,7 +213,7 @@ likely thing to go wrong.
       AI workflow, connector integration, completed vs incomplete features, known
       limitations, next steps, third-party disclosure. Brief section 8 is the outline
 - [ ] T12.5 Deploy to Vercel, set `AUTH_MODE=live`, smoke-test the journey on the deployed URL
-- [ ] T12.6 Final pass: no secrets committed, `.env.example` complete, stub-auth guard verified
+- [x] T12.6 Final pass: no secrets committed, `.env.example` complete, stub-auth guard verified
       in production build
 
 ---
