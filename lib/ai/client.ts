@@ -12,6 +12,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { z } from 'zod'
 import { admin } from '../supabase/admin'
+import { MODEL, estimateCost, type ModelTier } from './models'
+
+export type { ModelTier } from './models'
 
 // ANTHROPIC_API_KEY doubles as the AI provider key. DeepSeek exposes an
 // Anthropic-compatible endpoint, so the same SDK works for both: leave
@@ -20,23 +23,6 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
   baseURL: process.env.AI_BASE_URL,
 })
-
-export type ModelTier = 'drafting' | 'classify'
-
-const MODEL: Record<ModelTier, string> = {
-  drafting: process.env.AI_MODEL_DRAFTING ?? 'deepseek-v4-pro',
-  classify: process.env.AI_MODEL_CLASSIFY ?? 'deepseek-flash',
-}
-
-// Published per-million-token rates. Only used for the spend display and cap —
-// billing is whatever the console says. Update if the rates change.
-const RATES: Record<string, { in: number; out: number }> = {
-  'claude-sonnet-4-6': { in: 3, out: 15 },
-  'claude-haiku-4-5-20251001': { in: 1, out: 5 },
-  // DeepSeek estimates — confirm against the DeepSeek pricing page.
-  'deepseek-v4-pro': { in: 1.5, out: 3 },
-  'deepseek-flash': { in: 0.3, out: 1.1 },
-}
 
 export class AIError extends Error {
   constructor(
@@ -72,11 +58,6 @@ export interface RunResult<T> {
   costUsd: number
 }
 
-function estimateCost(model: string, inTok: number, outTok: number) {
-  const r = RATES[model] ?? { in: 3, out: 15 }
-  return (inTok * r.in + outTok * r.out) / 1_000_000
-}
-
 /** Models sometimes wrap JSON in prose or fences despite instructions. Be forgiving. */
 function extractJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -98,6 +79,26 @@ async function monthSpend(): Promise<number> {
   return (data ?? []).reduce((sum, r) => sum + Number(r.cost_usd ?? 0), 0)
 }
 
+/**
+ * The spend cap, editable in Settings → AI workflow and stored in system_config.
+ * Falls back to the env var (and then 120) so a fresh DB or a missing row never
+ * blocks or skips the cap.
+ */
+async function configuredCap(): Promise<number> {
+  try {
+    const { data } = await admin
+      .from('system_config')
+      .select('value')
+      .eq('key', 'ai_monthly_cap_usd')
+      .maybeSingle()
+    const n = Number(data?.value)
+    if (Number.isFinite(n) && n > 0) return n
+  } catch {
+    // Table not yet migrated — fall through to the env fallback.
+  }
+  return Number(process.env.AI_MONTHLY_CAP_USD ?? 120)
+}
+
 export async function runPrompt<T>(
   spec: PromptSpec<T>,
   userContent: string,
@@ -106,7 +107,7 @@ export async function runPrompt<T>(
   const model = MODEL[spec.tier]
 
   if (opts.enforceCap !== false) {
-    const cap = Number(process.env.AI_MONTHLY_CAP_USD ?? 120)
+    const cap = await configuredCap()
     const spent = await monthSpend()
     if (spent >= cap) {
       throw new AIError(

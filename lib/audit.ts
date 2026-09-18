@@ -100,6 +100,11 @@ export const AUDIT = {
   TASK_CREATED: 'Task created',
   CONTACT_ADDED: 'Decision-maker added',
   PRIMARY_CONTACT_SET: 'Primary decision-maker set',
+  // settings configuration (T11.4, T11.5)
+  AI_CONFIG_CHANGED: 'AI spend cap changed',
+  GUARDRAIL_MATTER_ADDED: 'Reserved matter added',
+  GUARDRAIL_MATTER_REMOVED: 'Reserved matter removed',
+  REFUSAL_TEMPLATE_UPDATED: 'Refusal template updated',
   // AI
   AI_RESEARCH: 'Research run',
   AI_DRAFT: 'Draft generated',

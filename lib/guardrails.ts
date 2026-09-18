@@ -37,8 +37,19 @@ export type ReservedMatter =
   | 'discount'
   | 'contract_length'
 
+/** A matter the guardrail blocks, as configured in Settings → Commercial guardrails. */
+export interface ReservedMatterEntry {
+  /** Slug key ('price', 'packaging-redesign'). Built-ins match ReservedMatter. */
+  key: string
+  /** Display label ('Price', 'Packaging redesign'). */
+  label: string
+}
+
 export interface Finding {
-  matter: ReservedMatter
+  /** The matter key. A built-in key, or a custom slug from the configured list. */
+  matter: string
+  /** Human label for the finding, for display in review and holds. */
+  label: string
   /** The sentence as it appears in the draft, so review can highlight it. */
   sentence: string
   /** Where the sentence starts, for the highlight span. */
@@ -51,7 +62,7 @@ export interface GuardrailResult {
   clear: boolean
   findings: Finding[]
   /** Set when blocked — the matter to name in the release request. */
-  primaryMatter: ReservedMatter | null
+  primaryMatter: string | null
 }
 
 export const RESERVED_LABELS: Record<ReservedMatter, string> = {
@@ -72,6 +83,21 @@ export const RESERVED_LABELS: Record<ReservedMatter, string> = {
 
 /** Canonical list of reserved matters — the single source of truth for the code. */
 export const RESERVED_MATTERS = Object.keys(RESERVED_LABELS) as ReservedMatter[]
+
+/** The built-in matters as entries, for the model pass and the settings pane. */
+export const BUILTIN_MATTER_ENTRIES: ReservedMatterEntry[] = RESERVED_MATTERS.map((key) => ({
+  key,
+  label: RESERVED_LABELS[key],
+}))
+
+/** Display label for any matter key: built-in labels first, then a title-cased slug. */
+export function reservedLabel(matter: string): string {
+  if (matter in RESERVED_LABELS) return RESERVED_LABELS[matter as ReservedMatter]
+  return matter
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim()
+}
 
 /**
  * Deterministic patterns. Tuned to over-catch: a false hold costs one click from
@@ -141,20 +167,33 @@ export function scanPatterns(body: string): Finding[] {
   for (const s of sentences(body)) {
     for (const [matter, re] of PATTERNS) {
       if (re.test(s.text)) {
-        findings.push({ matter, sentence: s.text, offset: s.offset, how: 'pattern' })
+        findings.push({
+          matter,
+          label: reservedLabel(matter),
+          sentence: s.text,
+          offset: s.offset,
+          how: 'pattern',
+        })
       }
     }
   }
   return findings
 }
 
-const MODEL_PASS_PROMPT = `You check outbound B2B export emails for commercial commitments.
+/**
+ * The model pass prompt, built from the configured matter list so a matter added
+ * in Settings is actually asked about. Built-ins and custom matters are listed the
+ * same way; the model returns the key, and checkDraft validates it against the
+ * same list.
+ */
+function modelPassPrompt(active: ReservedMatterEntry[]): string {
+  const list = active.map((e) => `${e.key} · ${e.label}`).join('\n')
+  return `You check outbound B2B export emails for commercial commitments.
 
 Anwar Group reserves these matters to authorised staff. An email from the export desk must
 not state, imply, promise or invite negotiation on any of them:
 
-price · payment_terms · credit · moq · freight · delivery_date · samples · exclusivity ·
-distributor_appointment · warranty · technical_compliance · discount · contract_length
+${list}
 
 Judge meaning, not vocabulary. "What would a container land at?" is price. "I can get
 something into your lab this month" is samples. "We always ship in four weeks" is
@@ -165,30 +204,37 @@ Stating a published capability is fine — capacity, counts offered, certificati
 which port we ship from. Turning one into a promise to this buyer is not.
 
 Return JSON only:
-{"findings":[{"matter":"<one of the list>","sentence":"<exact sentence from the email>"}]}
+{"findings":[{"matter":"<one of the keys above>","sentence":"<exact sentence from the email>"}]}
 Empty findings array if the email is clear.`
+}
 
 /**
  * Full check. Pattern pass always; model pass only when the patterns are clear,
  * since a blocked draft is already blocked and the call would change nothing.
  *
  * callModel is injected so unit tests run offline — see guardrails.test.ts.
+ * activeMatters is the configured list; built-ins are the default so a caller
+ * that has not loaded configuration still checks the canonical matters.
  */
 export async function checkDraft(
   body: string,
   callModel?: (system: string, user: string) => Promise<string>,
+  activeMatters: ReservedMatterEntry[] = BUILTIN_MATTER_ENTRIES,
 ): Promise<GuardrailResult> {
   const findings = scanPatterns(body)
+  const activeKeys = new Set(activeMatters.map((e) => e.key))
+  const labelFor = new Map(activeMatters.map((e) => [e.key, e.label]))
 
   if (findings.length === 0 && callModel) {
     try {
-      const raw = await callModel(MODEL_PASS_PROMPT, body)
+      const raw = await callModel(modelPassPrompt(activeMatters), body)
       const parsed = JSON.parse(raw) as { findings?: Array<{ matter: string; sentence: string }> }
       for (const f of parsed.findings ?? []) {
-        if (!(f.matter in RESERVED_LABELS)) continue
+        if (!activeKeys.has(f.matter)) continue
         const offset = body.indexOf(f.sentence)
         findings.push({
-          matter: f.matter as ReservedMatter,
+          matter: f.matter,
+          label: labelFor.get(f.matter) ?? reservedLabel(f.matter),
           sentence: f.sentence,
           offset: offset >= 0 ? offset : 0,
           how: 'model',
@@ -202,6 +248,7 @@ export async function checkDraft(
         findings: [
           {
             matter: 'price',
+            label: reservedLabel('price'),
             sentence: 'Automatic check could not complete. Held for manual review.',
             offset: 0,
             how: 'model',
@@ -232,4 +279,34 @@ export function riskSpans(findings: Finding[]): Array<[number, number]> {
  */
 export function standardRefusal(matter: ReservedMatter, authorityName: string, market: string) {
   return `Thank you for asking. ${RESERVED_LABELS[matter]} for this product is set by our export desk rather than by me, so I have passed your question to ${authorityName}, who looks after commercial terms for ${market}. They will write to you directly this week.`
+}
+
+/* ------------------------------------------------------------------ */
+/* The configurable standard refusal (T11.5)                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The default deferral wording for a reply draft. Deliberately keyword-free: it
+ * names no reserved term, so a reply containing it never trips the guardrail (see
+ * buildReplyDraft and replyDraftIsClean). Placeholders {authority} and {market}
+ * are filled at draft time. This is the value seeded into system_config.
+ */
+export const DEFAULT_REFUSAL_TEMPLATE =
+  'On the commercial points you raised, those are set by our export desk rather than by me, so I have passed them to {authority}, who looks after commercial matters for {market}. They will write to you directly this week.'
+
+/** Fill the two placeholders. Unknown placeholders are left as-is. */
+export function refusalFromTemplate(
+  template: string,
+  args: { authority: string; market: string },
+): string {
+  return template.replaceAll('{authority}', args.authority).replaceAll('{market}', args.market)
+}
+
+/**
+ * A saved refusal template must keep the invariant that a reply draft never trips
+ * the deterministic guardrail. If an edit introduces a reserved keyword (e.g. a
+ * manager writes "…our pricing and terms…"), refuse to save it.
+ */
+export function refusalTemplateIsClean(template: string): boolean {
+  return scanPatterns(template).length === 0
 }

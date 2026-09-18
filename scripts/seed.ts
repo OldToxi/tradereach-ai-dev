@@ -14,6 +14,8 @@
 import { admin } from '../lib/supabase/admin'
 import type { Database } from '../lib/database.types'
 import { SCORING_CRITERIA, DEFAULT_WEIGHTS, distributeBreakdown } from '../lib/scoring'
+import { BUILTIN_MATTER_ENTRIES } from '../lib/guardrails'
+import { DEFAULT_SYSTEM_CONFIG, SYSTEM_CONFIG_KEYS } from '../lib/system-config'
 
 type UserRole = Database['public']['Enums']['user_role']
 type Stage = Database['public']['Enums']['stage']
@@ -313,6 +315,33 @@ async function seedScoring() {
   console.log(`  ${SCORING_CRITERIA.length} scoring weights`)
 }
 
+async function seedGuardrailsConfig() {
+  // Built-in reserved matters and the runtime config. ignoreDuplicates keeps a
+  // manager's custom matters and saved settings intact on re-seed; this only heals
+  // missing rows (the migration 0014 defaults already inserted them).
+  const matters = BUILTIN_MATTER_ENTRIES.map((m, i) => ({
+    key: m.key,
+    label: m.label,
+    is_builtin: true,
+    active: true,
+    sort_order: i + 1,
+  }))
+  const { error: mErr } = await admin.from('reserved_matter').upsert(matters, {
+    onConflict: 'key',
+    ignoreDuplicates: true,
+  })
+  if (mErr) throw new Error(`reserved_matter: ${mErr.message}`)
+
+  const configRows = SYSTEM_CONFIG_KEYS.map((key) => ({ key, value: DEFAULT_SYSTEM_CONFIG[key] }))
+  const { error: cErr } = await admin.from('system_config').upsert(configRows, {
+    onConflict: 'key',
+    ignoreDuplicates: true,
+  })
+  if (cErr) throw new Error(`system_config: ${cErr.message}`)
+
+  console.log(`  ${matters.length} reserved matters + ${configRows.length} config keys`)
+}
+
 async function seedMarketNotes() {
   const { data: markets } = await admin.from('market').select('id, country')
   const idByCountry: Record<string, string> = {}
@@ -570,6 +599,7 @@ async function main() {
   await seedUsers()
   await seedCatalog()
   await seedScoring()
+  await seedGuardrailsConfig()
   await seedMarketNotes()
   await seedCompanies()
   await seedResearch()

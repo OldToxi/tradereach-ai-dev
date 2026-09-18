@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { disconnectGmail } from '@/lib/gmail-actions'
 import { UsersPane } from '@/components/UsersPane'
 import { ScoringPane } from '@/components/ScoringPane'
+import { AiWorkflowPane } from '@/components/AiWorkflowPane'
+import { GuardrailsPane, type ReservedMatterView } from '@/components/GuardrailsPane'
 import type { TeamMemberView } from '@/lib/users'
 import type { WeightMap } from '@/lib/scoring'
+import type { WorkflowStep } from '@/lib/ai/workflow'
 
 export interface GmailStatus {
   connected: boolean
@@ -32,6 +35,11 @@ export function SettingsScreen({
   marketOptions,
   currentUserId,
   weights,
+  aiSteps,
+  spendCap,
+  alertThreshold,
+  reservedMatters,
+  refusalTemplate,
 }: {
   role: string
   gmailStatus: GmailStatus
@@ -42,6 +50,11 @@ export function SettingsScreen({
   marketOptions: string[]
   currentUserId: string
   weights: WeightMap
+  aiSteps: WorkflowStep[]
+  spendCap: number
+  alertThreshold: number
+  reservedMatters: ReservedMatterView[]
+  refusalTemplate: string
 }) {
   const [tab, setTab] = useState(initialTab)
   const isManager = role === 'manager'
@@ -78,6 +91,10 @@ export function SettingsScreen({
         <UsersPane team={team} marketOptions={marketOptions} currentUserId={currentUserId} />
       ) : tab === 'score' ? (
         <ScoringPane weights={weights} />
+      ) : tab === 'ai' ? (
+        <AiWorkflowPane steps={aiSteps} spendCap={spendCap} alertThreshold={alertThreshold} />
+      ) : tab === 'guardrails' ? (
+        <GuardrailsPane matters={reservedMatters} refusalTemplate={refusalTemplate} />
       ) : (
         <div className="card">
           <div className="body">

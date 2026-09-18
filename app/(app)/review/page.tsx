@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { currentUser, canApprove, canReleaseCommercial } from '@/lib/session'
 import { AUDIT } from '@/lib/audit'
 import { PRODUCT_CONTEXT_COLUMNS } from '@/lib/ai/context'
-import { scanPatterns, RESERVED_LABELS } from '@/lib/guardrails'
+import { scanPatterns, reservedLabel } from '@/lib/guardrails'
 import { isSuppressed } from '@/lib/contacts'
 import {
   buildPreSendChecks,
@@ -149,9 +149,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: { id?
       why: (selected.why ?? []) as string[],
       status: selected.status,
       reservedMatter: selected.reserved_matter,
-      reservedMatterLabel: selected.reserved_matter
-        ? (RESERVED_LABELS[selected.reserved_matter as keyof typeof RESERVED_LABELS] ?? selected.reserved_matter)
-        : null,
+      reservedMatterLabel: selected.reserved_matter ? reservedLabel(selected.reserved_matter) : null,
       released: selected.released_by != null,
       age: selected.created_at,
       checks,

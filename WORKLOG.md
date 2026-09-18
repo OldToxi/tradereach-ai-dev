@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`███████████████████████████░░░` **88%** — 69 of 78 tasks complete
+`███████████████████████████░░░` **91%** — 71 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -37,7 +37,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 8 · Gmail connector | 5 | 5 ✓ |
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
-| 11 · Control surfaces | 3 | 5 |
+| 11 · Control surfaces | 5 | 5 ✓ |
 | 12 · Tests, docs, deploy | 0 | 6 |
 <!-- PROGRESS:END -->
 
@@ -1030,24 +1030,111 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T11.4 — Settings → AI workflow: ten-step table, model settings, spend cap
+- when: 2026-09-18 17:50 UTC
+- agent: opencode
+- files: supabase/migrations/0014_ai_guardrail_config.sql, lib/ai/models.ts,
+    lib/ai/client.ts, lib/ai/workflow.ts, lib/system-config.ts, lib/ai-config-actions.ts,
+    components/AiWorkflowPane.tsx, components/SettingsScreen.tsx,
+    app/(app)/settings/page.tsx, tests/workflow.test.ts, tests/system-config.test.ts
+- done: |
+    `lib/ai/workflow.ts` lays the mock's ten steps over the four real prompt specs —
+    six capabilities of the single research call, the draft call, the follow-up call, and
+    the two triage capabilities — so the settings table reads the actual version, model,
+    tier, maxTokens and temperature from `lib/ai/prompts/*` and `lib/ai/models.ts` rather
+    than a hardcoded copy that could drift. `lib/ai/models.ts` is split out of client.ts
+    so the pane can show configured model names without importing the Anthropic SDK.
+    `lib/ai/client.ts#configuredCap()` now reads `ai_monthly_cap_usd` from `system_config`
+    on every prompt call (env/120 fallback), so a saved cap takes effect with no redeploy.
+    `components/AiWorkflowPane.tsx` renders the ten-step table, a Model settings card
+    (drafting/classify model + drafting temperature, read-only from env) and the spend
+    cap/alert form wired to `saveSpendConfig`, plus the mock's Refusals-and-limits card.
+    `app/(app)/settings/page.tsx` loads `WORKFLOW_STEPS` + the `system_config` rows and
+    hands them to the pane.
+- verified: |
+    `npm run verify` green — 236 tests, 21 files (new `tests/workflow.test.ts` = 4,
+    `tests/system-config.test.ts` = 5). Migration 0014 applied to the remote
+    (`supabase db push`); `lib/database.types.ts` regenerated (UTF-8, no BOM).
+    `tests/workflow.test.ts` pins the ten-step order and that each step reads a real
+    prompt version + model name; `tests/system-config.test.ts` proves bad config rows
+    fall back to defaults rather than disabling the cap silently.
+- notes: |
+    `WORKFLOW_STEPS` imports prompt specs and `models.ts` only — the prompt files import
+    `PromptSpec` from client.ts as `type` (erased), so importing the workflow table never
+    instantiates the Anthropic SDK. The spend cap and alert are the only runtime-editable
+    AI settings; model names stay env-controlled.
+- surprises: none. The ten-to-four mapping was the only real design call — the mock lists
+    ten steps but the architecture has four prompts, so the table groups them the way
+    AGENTS.md §5 already documents.
+
+---
+
+### T11.5 — Settings → Commercial guardrails: reserved matters + refusal template
+- when: 2026-09-18 17:50 UTC
+- agent: opencode
+- files: supabase/migrations/0014_ai_guardrail_config.sql, lib/guardrails.ts,
+    lib/guardrails-config.ts, lib/guardrails-actions.ts, lib/replies.ts,
+    lib/reply-actions.ts, lib/ai/draft-runner.ts, lib/message-actions.ts,
+    app/(app)/review/page.tsx, lib/audit.ts, lib/audit-view.ts,
+    components/GuardrailsPane.tsx, components/SettingsScreen.tsx,
+    app/(app)/settings/page.tsx, scripts/seed.ts, tests/guardrails-config.test.ts,
+    tests/guardrails.test.ts
+- done: |
+    `reserved_matter` table holds the 13 built-in matters (mirroring the
+    `ReservedMatter` union — discounts and rebates combined as `discount`) plus custom
+    rows added from Settings. Built-ins are the fixed control and cannot be removed
+    (removing "price" would remove the control); only custom matters are deleted, and
+    they are caught by the meaning-based model pass. `checkDraft`'s model pass now takes
+    the configured active matter list — it validates the model's returned key against it
+    and labels the finding with the configured label (not a title-cased slug).
+    `lib/ai/draft-runner.ts` loads the list via the service role (an existing admin
+    caller) and falls back to the built-in list on a read failure, so a config read
+    error can never skip the check. The standard refusal template is editable and
+    validated keyword-free (`refusalTemplateIsClean` — a refusal that named a reserved
+    term would be held by the very guardrail it serves); it is filled into
+    `buildReplyDraft` from `system_config`. `Finding.matter` widened to `string` and
+    `Finding.label` added; review/holds show the label via `reservedLabel`. Four new
+    audit events: `AI_CONFIG_CHANGED`, `GUARDRAIL_MATTER_ADDED`,
+    `GUARDRAIL_MATTER_REMOVED`, `REFUSAL_TEMPLATE_UPDATED` (all mapped in audit-view).
+    `scripts/seed.ts` now heals the config + built-in matters idempotently
+    (`ignoreDuplicates`, so a manager's saved settings survive re-seed).
+- verified: |
+    `npm run verify` green — 236 tests, 21 files (new `tests/guardrails-config.test.ts` =
+    9; `tests/guardrails.test.ts` gained a "configured matters" block). Tests prove: a
+    custom matter is caught by the model pass, a model finding for a removed matter is
+    ignored (cannot block), built-ins are always active, the refusal template stays
+    keyword-free, and a template edit that names a reserved term is refused.
+- notes: |
+    No new service-role caller (draft-runner was already an admin caller for AI writes);
+    the Settings writes (add/remove/template) ride the acting manager's user client so
+    RLS is the real enforcement (`jwt_role() = 'manager'`). `system_config` needed an
+    INSERT policy in addition to UPDATE because the actions use `.upsert()` — 0014
+    includes `system_config_insert`.
+- surprises: none blocking. The first pass labelled a custom matter via `reservedLabel`
+    (which title-cases the slug: "Packaging redesign" → "Packaging Redesign"); fixed to
+    read the label from the configured list so the hold/review shows the manager's exact
+    wording. Worth remembering: a slug is a key, not a label.
+
+---
+
 ## Handoff
 
-**Status:** Phase 11 in progress. T11.1, T11.2 and T11.3 complete, tested, committed.
-Remaining in Phase 11: T11.4 and T11.5 (2 of 5 tasks).
+**Status:** Phase 11 complete. T11.1–T11.5 all done, tested, migration applied. Remaining
+work is Phase 12 (Tests, docs, deploy).
 
-- Last completed task: T11.3 Settings → Scoring. `npm run verify` green — 216 tests,
-  18 files.
-- Current task: none open — next code task is T11.4 (`Settings → AI workflow`). Note: T0.5
+- Last completed tasks: T11.4 (Settings → AI workflow) and T11.5 (Settings → Commercial
+  guardrails). `npm run verify` green — 236 tests, 21 files. Migration 0014 applied to the
+  remote and `lib/database.types.ts` regenerated (UTF-8, no BOM).
+- Current task: none open — next code task is T12.1 (unit tests for scoring maths,
+  guardrail detection, cadence dates, provenance constraint violations). Note: T0.5
   (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
-  "next: T0.5"; that does not block Phase 11.
-- Blocked on: nothing. The linked project is reachable; migration 0013 is applied and
-  types regenerated.
-- New files this phase: `lib/scoring.ts`, `lib/scoring-actions.ts`,
-  `components/ScoringPane.tsx`, `tests/scoring.test.ts`,
-  `supabase/migrations/0013_scoring.sql`; `lib/ai/prompts/research.ts` and
-  `lib/research-actions.ts` now weight-parameterised; `scripts/seed.ts` seeds weights +
-  research runs; `components/SettingsScreen.tsx` and `app/(app)/settings/page.tsx` wire
-  the Scoring tab.
+  "next: T0.5"; that does not block Phase 12.
+- Blocked on: nothing.
+- New files this phase: `lib/ai/models.ts`, `lib/ai/workflow.ts`, `lib/system-config.ts`,
+  `lib/ai-config-actions.ts`, `lib/guardrails-config.ts`, `lib/guardrails-actions.ts`,
+  `components/AiWorkflowPane.tsx`, `components/GuardrailsPane.tsx`,
+  `supabase/migrations/0014_ai_guardrail_config.sql`, `tests/workflow.test.ts`,
+  `tests/system-config.test.ts`, `tests/guardrails-config.test.ts`.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1056,13 +1143,13 @@ Remaining in Phase 11: T11.4 and T11.5 (2 of 5 tasks).
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: T11.1–T11.3 committed.
+- Commit status: T11.4/T11.5 not yet committed — commit next.
 - Next command for the next agent:
 
 ```
 npm run verify
-npm run dev
+npm run progress
 ```
 
-Then start T11.4 from PLAN.md.
+Then start T12.1 from PLAN.md.
 

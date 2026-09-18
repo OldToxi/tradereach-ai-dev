@@ -11,7 +11,7 @@ import { createServerClient } from './supabase/server'
 import { requirePermission, canWrite, canApprove, canReleaseCommercial } from './session'
 import { writeAudit, AUDIT } from './audit'
 import { sha256 } from './messages'
-import { scanPatterns, RESERVED_LABELS } from './guardrails'
+import { scanPatterns } from './guardrails'
 import { generateFirstTouch, generateFollowup, DraftError } from './ai/draft-runner'
 import { AIError } from './ai/client'
 import { createDraft, ConnectorError } from './gmail'
@@ -159,7 +159,7 @@ export async function editMessage(formData: FormData): Promise<MessageActionStat
   } else if (actor.role !== 'commercial') {
     return {
       ok: false,
-      error: `This text still touches a reserved matter (${RESERVED_LABELS[findings[0].matter]}). Remove it, or ask a Commercial Authority to review.`,
+      error: `This text still touches a reserved matter (${findings[0].label}). Remove it, or ask a Commercial Authority to review.`,
     }
   } else {
     update.status = 'held_commercial'

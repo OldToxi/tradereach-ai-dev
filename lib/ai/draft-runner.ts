@@ -14,7 +14,8 @@ import { runPrompt, runRaw } from './client'
 import { buildCompanyContext, buildProductContext, renderContext } from './context'
 import { draftPrompt, draftUserMessage } from './prompts/draft'
 import { followupPrompt, followupUserMessage } from './prompts/followup'
-import { checkDraft } from '../guardrails'
+import { checkDraft, type ReservedMatterEntry } from '../guardrails'
+import { activeMatterEntries, type ReservedMatterRow } from '../guardrails-config'
 import { writeAudit, AUDIT } from '../audit'
 import { ROLE_LABELS } from '../nav'
 import { nextTouchNumber } from '../messages'
@@ -29,7 +30,20 @@ export interface DraftActor {
 export class DraftError extends Error {}
 
 async function guardrailCheck(body: string) {
-  return checkDraft(body, (system, user) => runRaw(system, user, 'classify'))
+  // The configured matter list (Settings → Commercial guardrails) feeds the
+  // meaning-based model pass; built-ins remain the deterministic authority. A
+  // read failure must not skip the check — checkDraft's built-in default keeps
+  // the canonical matters covered, so we fall back to no custom list.
+  let active: ReservedMatterEntry[] | undefined
+  try {
+    const { data } = await admin
+      .from('reserved_matter')
+      .select('key, label, is_builtin, active, sort_order')
+    active = activeMatterEntries((data ?? []) as ReservedMatterRow[])
+  } catch {
+    active = undefined
+  }
+  return checkDraft(body, (system, user) => runRaw(system, user, 'classify'), active)
 }
 
 async function primaryContact(companyId: string) {

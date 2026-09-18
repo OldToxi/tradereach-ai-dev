@@ -213,6 +213,14 @@ export async function draftResponse(formData: FormData): Promise<ReplyActionStat
 
   const commercial = await commercialAuthority()
 
+  // The standard refusal template, editable in Settings → Commercial guardrails.
+  // Missing row → buildReplyDraft falls back to its keyword-free default.
+  const { data: refusalRow } = await supabase
+    .from('system_config')
+    .select('value')
+    .eq('key', 'refusal_template')
+    .maybeSingle()
+
   const draft = buildReplyDraft({
     contactName: contact?.full_name ?? null,
     senderName: actor.fullName,
@@ -222,6 +230,7 @@ export async function draftResponse(formData: FormData): Promise<ReplyActionStat
     authorityName: commercial?.full_name ?? 'our Commercial Authority',
     market: company?.market ?? '',
     threadSubject: message?.subject ?? '',
+    deferralTemplate: refusalRow?.value ?? undefined,
   })
 
   // The deterministic draft is built to be clean, but a keyword must never sail

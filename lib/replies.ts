@@ -7,7 +7,7 @@
  * without a request, a database or a model call.
  */
 import { domainOf } from './contacts'
-import { scanPatterns } from './guardrails'
+import { scanPatterns, refusalFromTemplate, DEFAULT_REFUSAL_TEMPLATE } from './guardrails'
 
 export const CATEGORY_LABELS: Record<string, string> = {
   buying_interest: 'Buying interest',
@@ -107,6 +107,8 @@ export interface ReplyDraftInput {
   authorityName: string
   market: string
   threadSubject: string
+  /** Optional: the configured refusal template (T11.5). Defaults to the keyword-free one. */
+  deferralTemplate?: string
 }
 
 export interface ReplyDraft {
@@ -151,7 +153,10 @@ export function buildReplyDraft(input: ReplyDraftInput): ReplyDraft {
   if (input.reserved.length) {
     lines.push('')
     lines.push(
-      `On the commercial points you raised, those are set by our export desk rather than by me, so I have passed them to ${input.authorityName}, who looks after commercial matters for ${input.market}. They will write to you directly this week.`,
+      refusalFromTemplate(input.deferralTemplate ?? DEFAULT_REFUSAL_TEMPLATE, {
+        authority: input.authorityName,
+        market: input.market,
+      }),
     )
   }
 

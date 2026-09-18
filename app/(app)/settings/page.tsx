@@ -3,8 +3,11 @@ import { getConnectionStatus } from '@/lib/gmail'
 import { createServerClient } from '@/lib/supabase/server'
 import { admin } from '@/lib/supabase/admin'
 import { SettingsScreen } from '@/components/SettingsScreen'
+import type { ReservedMatterView } from '@/components/GuardrailsPane'
 import { roleIsValid, type TeamMemberView } from '@/lib/users'
 import { weightsFromRows } from '@/lib/scoring'
+import { WORKFLOW_STEPS } from '@/lib/ai/workflow'
+import { configFromRows, spendCapUsd, alertThresholdPct } from '@/lib/system-config'
 
 export default async function SettingsPage({
   searchParams,
@@ -63,6 +66,17 @@ export default async function SettingsPage({
     .order('sort_order')
   const weights = weightsFromRows(weightRows ?? [])
 
+  const [{ data: configRows }, { data: matterRows }] = await Promise.all([
+    supabase.from('system_config').select('key, value'),
+    supabase.from('reserved_matter').select('key, label, is_builtin').order('sort_order'),
+  ])
+  const config = configFromRows(configRows ?? [])
+  const reservedMatters: ReservedMatterView[] = (matterRows ?? []).map((m) => ({
+    key: m.key,
+    label: m.label,
+    isBuiltin: m.is_builtin,
+  }))
+
   return (
     <SettingsScreen
       role={user.role}
@@ -74,6 +88,11 @@ export default async function SettingsPage({
       marketOptions={marketOptions}
       currentUserId={user.id}
       weights={weights}
+      aiSteps={WORKFLOW_STEPS}
+      spendCap={spendCapUsd(config)}
+      alertThreshold={alertThresholdPct(config)}
+      reservedMatters={reservedMatters}
+      refusalTemplate={config.refusal_template}
     />
   )
 }

@@ -195,9 +195,9 @@ likely thing to go wrong.
 - [x] T11.2 Settings → Users & roles: team table, invite, role and market assignment
 - [x] T11.3 Settings → Scoring: weight sliders, thresholds, recalculation on save, history of
       past scores preserved
-- [ ] T11.4 Settings → AI workflow: the ten-step table, model settings, spend cap,
+- [x] T11.4 Settings → AI workflow: the ten-step table, model settings, spend cap,
       refusals-and-limits panel. Reads real prompt versions
-- [ ] T11.5 Settings → Commercial guardrails: reserved matters list, add/remove, standard
+- [x] T11.5 Settings → Commercial guardrails: reserved matters list, add/remove, standard
       refusal template editor
 
 ---

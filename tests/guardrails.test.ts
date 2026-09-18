@@ -4,7 +4,7 @@
  * that made you loosen it.
  */
 import { describe, it, expect } from 'vitest'
-import { scanPatterns, checkDraft, standardRefusal } from '../lib/guardrails'
+import { scanPatterns, checkDraft, standardRefusal, BUILTIN_MATTER_ENTRIES } from '../lib/guardrails'
 
 const CLEAN = `Dear Ms Brauer,
 
@@ -108,5 +108,36 @@ describe('standard refusal', () => {
     expect(text).toContain('Mahbub Rahman')
     expect(text).toContain('Türkiye')
     expect(scanPatterns(text.replace(/Price/g, 'X'))).toHaveLength(0)
+  })
+})
+
+describe('configured matters', () => {
+  const model = (findings: unknown) => async () => JSON.stringify(findings)
+
+  it('flags a custom matter the patterns cannot know about', async () => {
+    const active = [
+      ...BUILTIN_MATTER_ENTRIES,
+      { key: 'packaging-redesign', label: 'Packaging redesign' },
+    ]
+    const body = 'Would you like us to redo the artwork for the liner before packing?'
+    const result = await checkDraft(
+      body,
+      model({ findings: [{ matter: 'packaging-redesign', sentence: body }] }),
+      active,
+    )
+    expect(result.clear).toBe(false)
+    expect(result.primaryMatter).toBe('packaging-redesign')
+    expect(result.findings[0].label).toBe('Packaging redesign')
+  })
+
+  it('ignores a model finding for a matter that was removed from the list', async () => {
+    const body = 'Shall we talk through a packaging redesign?'
+    const result = await checkDraft(
+      body,
+      model({ findings: [{ matter: 'packaging-redesign', sentence: body }] }),
+      BUILTIN_MATTER_ENTRIES,
+    )
+    // The model volunteered a matter that is not configured — it must not block.
+    expect(result.clear).toBe(true)
   })
 })

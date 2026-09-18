@@ -815,6 +815,36 @@ export type Database = {
           },
         ]
       }
+      reserved_matter: {
+        Row: {
+          active: boolean
+          created_at: string
+          is_builtin: boolean
+          key: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          is_builtin?: boolean
+          key: string
+          label: string
+          sort_order: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          is_builtin?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       score_weight: {
         Row: {
           criterion_key: string
@@ -895,6 +925,24 @@ export type Database = {
           created_at?: string
           email_or_domain?: string
           reason?: string
+        }
+        Relationships: []
+      }
+      system_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }

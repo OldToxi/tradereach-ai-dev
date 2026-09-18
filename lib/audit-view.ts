@@ -63,6 +63,10 @@ const EVENT_GROUP: Record<string, AuditGroup> = {
   'Meeting scheduled': 'field_changes',
   'Weekly read-out generated': 'field_changes',
   'Weekly read-out reviewed': 'field_changes',
+  'AI spend cap changed': 'field_changes',
+  'Reserved matter added': 'field_changes',
+  'Reserved matter removed': 'field_changes',
+  'Refusal template updated': 'field_changes',
   // connector calls
   'Gmail connected': 'connector',
   'Gmail draft created': 'connector',
