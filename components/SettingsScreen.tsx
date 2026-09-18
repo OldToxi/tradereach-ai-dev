@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { disconnectGmail } from '@/lib/gmail-actions'
+import { UsersPane } from '@/components/UsersPane'
+import type { TeamMemberView } from '@/lib/users'
 
 export interface GmailStatus {
   connected: boolean
@@ -24,12 +26,18 @@ export function SettingsScreen({
   initialTab,
   gmailNotice,
   gmailMessage,
+  team,
+  marketOptions,
+  currentUserId,
 }: {
   role: string
   gmailStatus: GmailStatus
   initialTab: string
   gmailNotice: string | null
   gmailMessage: string | null
+  team: TeamMemberView[]
+  marketOptions: string[]
+  currentUserId: string
 }) {
   const [tab, setTab] = useState(initialTab)
   const isManager = role === 'manager'
@@ -62,6 +70,8 @@ export function SettingsScreen({
 
       {tab === 'connectors' ? (
         <ConnectorsPane gmailStatus={gmailStatus} />
+      ) : tab === 'users' ? (
+        <UsersPane team={team} marketOptions={marketOptions} currentUserId={currentUserId} />
       ) : (
         <div className="card">
           <div className="body">

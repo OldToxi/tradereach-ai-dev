@@ -72,6 +72,7 @@ const EVENT_GROUP: Record<string, AuditGroup> = {
   'Access refused': 'access',
   'Signed in': 'access',
   'Role changed': 'access',
+  'User invited': 'access',
 }
 
 /** The group an event belongs to; unknown events fall back to `all`. */

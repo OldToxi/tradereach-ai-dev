@@ -1,6 +1,9 @@
 import { currentUser } from '@/lib/session'
 import { getConnectionStatus } from '@/lib/gmail'
+import { createServerClient } from '@/lib/supabase/server'
+import { admin } from '@/lib/supabase/admin'
 import { SettingsScreen } from '@/components/SettingsScreen'
+import { roleIsValid, type TeamMemberView } from '@/lib/users'
 
 export default async function SettingsPage({
   searchParams,
@@ -28,6 +31,30 @@ export default async function SettingsPage({
 
   const gmailStatus = await getConnectionStatus(user.id)
 
+  let team: TeamMemberView[] = []
+  let marketOptions: string[] = []
+
+  if (user.role === 'manager') {
+    const supabase = await createServerClient()
+    const [{ data: profiles }, { data: markets }] = await Promise.all([
+      supabase.from('profiles').select('id, email, full_name, role, assigned_markets').order('created_at'),
+      supabase.from('market').select('country').order('country'),
+    ])
+
+    const lastSeen = await lastSeenMap()
+
+    team = (profiles ?? []).map((p) => ({
+      id: p.id,
+      email: p.email,
+      fullName: p.full_name,
+      role: roleIsValid(p.role) ? p.role : 'executive',
+      markets: p.assigned_markets ?? [],
+      lastSeen: lastSeen.get(p.id) ?? null,
+      isSelf: p.id === user.id,
+    }))
+    marketOptions = (markets ?? []).map((m) => m.country)
+  }
+
   return (
     <SettingsScreen
       role={user.role}
@@ -35,6 +62,24 @@ export default async function SettingsPage({
       initialTab={searchParams.tab === 'connectors' ? 'connectors' : user.role === 'commercial' ? 'connectors' : 'users'}
       gmailNotice={searchParams.gmail ?? null}
       gmailMessage={searchParams.message ?? null}
+      team={team}
+      marketOptions={marketOptions}
+      currentUserId={user.id}
     />
   )
+}
+
+/** Best-effort last-sign-in from the Auth admin API; never blocks the team table. */
+async function lastSeenMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  try {
+    const { data } = await admin.auth.admin.listUsers()
+    const users = data?.users ?? []
+    for (const u of users) {
+      if (u.id && u.last_sign_in_at) map.set(u.id, u.last_sign_in_at)
+    }
+  } catch (err) {
+    console.error('[settings] last-sign-in lookup failed:', err)
+  }
+  return map
 }

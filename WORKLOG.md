@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`██████████████████████████░░░░` **86%** — 67 of 78 tasks complete
+`██████████████████████████░░░░` **87%** — 68 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -37,7 +37,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 8 · Gmail connector | 5 | 5 ✓ |
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
-| 11 · Control surfaces | 1 | 5 |
+| 11 · Control surfaces | 2 | 5 |
 | 12 · Tests, docs, deploy | 0 | 6 |
 <!-- PROGRESS:END -->
 
@@ -932,21 +932,79 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T11.2 — Settings → Users & roles: team table, invite, role and market assignment
+- when: 2026-09-18 23:55 UTC
+- agent: opencode
+- files: lib/users.ts, lib/user-actions.ts, components/UsersPane.tsx,
+    components/SettingsScreen.tsx, app/(app)/settings/page.tsx, lib/audit.ts,
+    lib/audit-view.ts, lib/supabase/admin.ts, AGENTS.md, tests/users.test.ts
+- done: |
+    `lib/users.ts` (pure, tested): the four roles + labels, `roleIsValid`, the
+    role→capability mapping (`canApproveFor`, `canReleaseFor`) and `marketsLabel`
+    (commercial/auditor always "All"; executives/managers show their assigned list).
+    The Settings "Users & roles" tab is now real: `components/UsersPane.tsx` renders the
+    mock's team table (Name/email, Role, Markets, Can approve, Can release terms, Last
+    seen, Edit) plus the "What each role can do" card and the data-boundary note. Last
+    seen comes from `admin.auth.admin.listUsers()` → `last_sign_in_at`. "Invite user"
+    opens a modal (name/email/role/markets checkboxes) → `inviteUser` server action;
+    each row's Edit opens the same modal for role + market assignment → `updateUserRole`.
+    `updateUserRole` writes through the acting manager's user client (so
+    `profiles_manager_writes` RLS is the real enforcement) and refuses a manager
+    changing their own role (separation of duties). Both actions audit (new
+    `AUDIT.USER_INVITED`; `ROLE_CHANGED` for reassignment) and `revalidatePath('/settings')`.
+- verified: |
+    `npm run verify` green — 205 tests, 17 files (up from 198; new `tests/users.test.ts`
+    = 7). Live against the linked remote:
+    - `listUsers()` returns the 5 seeded users with `last_sign_in_at` (audit user has
+      none — never signed in — correctly renders "—").
+    - `createUser` accepts `.test` addresses and creates a confirmed account; the
+      profile insert round-trips (verified in a throwaway probe, then deleted).
+    - RLS role gating for role/market assignment, confirmed with real user tokens
+      (anon key + `setSession`, NOT the service-role key): manager (rifat) update on
+      tanvir affected 1 row; executive (nusrat) update on rifat affected 0 rows and
+      rifat's markets were unchanged. (A first probe accidentally used the service-role
+      key as `apikey` and overwrote rifat's markets to `["Japan"]` — caught it, restored
+      to `["Türkiye","Germany","United Kingdom"]`, and re-ran correctly. No seed damage
+      remains.)
+- notes: |
+    `inviteUserByEmail` is NOT used — this environment has no outbound email and
+    rejects reserved `.test` TLDs, and hits Supabase's email rate limit. Instead
+    "invite" mirrors scripts/seed.ts: `createUser` with `email_confirm: true` and the
+    shared demo password (`demo-password-2026`), so the invited user appears and can
+    sign in immediately. Documented in the action's comment and surfaced in the modal
+    ("signs in with the shared demo password"). A real deployment would swap in
+    `inviteUserByEmail`. This adds a FIFTH service-role caller (user administration:
+    createUser + last-sign-in read + profile insert during invite) — `admin.ts`'s header
+    and AGENTS.md §5 were updated to say so. Adding `AUDIT.USER_INVITED` automatically
+    passed T11.1's vocab-coverage test (it reads the AUDIT source), mapping to the
+    `access` group.
+- surprises: |
+    The role-change enforcement is silent on the DB side: PostgREST returns no error
+    when RLS filters a write, it just affects 0 rows — so the "executive can update
+    profiles?" question must be answered by row count, not by absence of error. My first
+    live probe got this wrong and briefly corrupted seed data. The `updateUserRole`
+    action therefore `.select('id')`s and treats 0 rows as "not found/not editable"
+    rather than a silent success. Worth remembering for any future RLS-protected write
+    action.
+
+---
+
 ## Handoff
 
-**Status:** Phase 11 started. T11.1 (`/audit`) complete, tested, committed. Remaining in
-Phase 11: T11.2–T11.5 (4 of 5 tasks).
+**Status:** Phase 11 in progress. T11.1 and T11.2 complete, tested, committed. Remaining
+in Phase 11: T11.3–T11.5 (3 of 5 tasks).
 
-- Last completed task: T11.1 `/audit` — filterable, paginated, exportable trail with
-  append-only proven both from the migration source (unit test) and against the live DB
-  (service-role UPDATE/DELETE refused). `npm run verify` green — 198 tests, 16 files.
-- Current task: none open — next code task is T11.2 (`Settings → Users & roles`). Note:
-  T0.5 (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
+- Last completed task: T11.2 Settings → Users & roles. `npm run verify` green — 205
+  tests, 17 files.
+- Current task: none open — next code task is T11.3 (`Settings → Scoring`). Note: T0.5
+  (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
   "next: T0.5"; that does not block Phase 11.
 - Blocked on: nothing. The linked project is reachable; all migrations are applied.
-- New files this phase: `lib/audit-view.ts` (read-side grouping + CSV, client-safe — no
-  admin import), `components/AuditScreen.tsx`, `app/api/audit/export/route.ts`,
-  `tests/audit.test.ts`; `app/(app)/audit/page.tsx` replaced the placeholder.
+- New files this phase: `lib/users.ts`, `lib/user-actions.ts`, `components/UsersPane.tsx`,
+  `tests/users.test.ts`; `lib/audit.ts` gained `USER_INVITED`; `lib/audit-view.ts`,
+  `lib/supabase/admin.ts` header and `AGENTS.md` §5 updated (fifth service-role caller);
+  `components/SettingsScreen.tsx` and `app/(app)/settings/page.tsx` now wire the real
+  Users tab.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -955,7 +1013,7 @@ Phase 11: T11.2–T11.5 (4 of 5 tasks).
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: T11.1 committed. No uncommitted changes.
+- Commit status: T11.1 and T11.2 committed. No uncommitted changes.
 - Next command for the next agent:
 
 ```
@@ -963,5 +1021,5 @@ npm run verify
 npm run dev
 ```
 
-Then start T11.2 from PLAN.md.
+Then start T11.3 from PLAN.md.
 

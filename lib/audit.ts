@@ -121,4 +121,5 @@ export const AUDIT = {
   ACCESS_REFUSED: 'Access refused',
   SIGNED_IN: 'Signed in',
   ROLE_CHANGED: 'Role changed',
+  USER_INVITED: 'User invited',
 } as const
