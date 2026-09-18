@@ -8,6 +8,10 @@ fact can point at where it came from.**
 This is a working application (Next.js + Supabase), not a demo mock. The click-through
 spec it was built against lives in `design/mock-ui.html`.
 
+The submission checklist (the twelve brief §8 deliverables, with status and pointers) is
+in [`DELIVERABLES.md`](DELIVERABLES.md); the recording script for the demo video is in
+[`DEMO.md`](DEMO.md).
+
 ---
 
 ## What it does
@@ -206,11 +210,13 @@ It is read-only and deterministic: it never fires a live AI call or a send.
 
 **Complete:** research, drafting, review queue, guardrails, replies & triage, meetings,
 pipeline, scoring, settings (users, scoring, AI workflow, commercial guardrails),
-Gmail + Calendar connectors, audit trail, and the full test suite.
+Gmail + Calendar connectors, audit trail, the products "market fit" panel, the
+"sent & follow-ups" outreach screen, and the full test suite (271 unit tests plus the
+twelve-step Playwright journey).
 
 **Not yet done (human steps):** Vercel deployment (`T0.5`, `T12.5` in `PLAN.md`) and the
-final production pass. See [`PLAN.md`](PLAN.md) and [`WORKLOG.md`](WORKLOG.md) for the
-live task state.
+demo video (`DEMO.md`). Everything else — 78 of 80 tasks — is finished. See
+[`PLAN.md`](PLAN.md) and [`WORKLOG.md`](WORKLOG.md) for the live task state.
 
 ---
 
@@ -232,8 +238,9 @@ live task state.
 
 1. Deploy to Vercel (`SETUP.md` step 5), set `AUTH_MODE=live`, smoke-test the journey on
    the deployed URL (`T12.5`).
-2. Final pass (`T12.6`): confirm no secrets are committed and `.env.example` is complete.
-3. Optional: a reply/triage cron, and multi-mailbox Gmail support.
+2. Record the demonstration video using [`DEMO.md`](DEMO.md).
+3. Optional: a reply/triage cron, multi-mailbox Gmail support, and Open/read tracking on
+   sent messages (the mock's "Opens" column has no schema behind it today).
 
 ---
 
