@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`██████████████░░░░░░░░░░░░░░░░` **47%** — 37 of 78 tasks complete
+`████████████████░░░░░░░░░░░░░░` **53%** — 41 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -32,7 +32,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 3 · Catalog | 4 | 4 ✓ |
 | 4 · Companies & research | 7 | 7 ✓ |
 | 5 · AI research pack | 6 | 6 ✓ |
-| 6 · Decision-makers | 0 | 4 |
+| 6 · Decision-makers | 4 | 4 ✓ |
 | 7 · Drafting & review | 0 | 7 |
 | 8 · Gmail connector | 0 | 5 |
 | 9 · Replies & triage | 0 | 6 |
@@ -337,38 +337,109 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T6.1–T6.4 — Decision-makers: /contacts list, Add contact + set-primary, AI decision-maker panel, contact stage gate
+- when: 2026-09-18 20:35 UTC
+- agent: claude-code
+- files: supabase/migrations/0009_contact_gate.sql, lib/contacts.ts, lib/contact-actions.ts, lib/audit.ts, app/(app)/contacts/page.tsx, components/ContactsScreen.tsx, components/CompanyDetailScreen.tsx, app/(app)/companies/[id]/page.tsx, tests/contacts.test.ts
+- done: |
+    T6.4's SQL rule was written first since T6.1–T6.3 both depend on knowing what "a
+    named contact" means: `enforce_stage_gate()` (0001, already extended by 0002/0004/0005's
+    `create or replace function` pattern) gained a second check — advancing into any of
+    outreach/follow_up/reply/meeting/commercial_discussion now requires at least one
+    `contact` row with both `email` and `email_source` set. Deliberately does not gate
+    entering `contact_identification` itself. `lib/contacts.ts` mirrors this client-side
+    (`hasNamedContact`/`contactGateBlocks`/`contactGateReason`) so the Advance button is
+    disabled with a reason before the DB ever has to refuse it — same pattern as T4.7's
+    qualification gate, and `CompanyDetailScreen`'s `blocked`/`StageControl` now combine
+    both gates into one `blockReasons: string[]` list rather than the qualification gate
+    alone.
+
+    T6.1 `/contacts`: every contact visible to the signed-in user (RLS scopes executives
+    to their markets automatically, same as `/companies`), joined to company/market, with
+    provenance badge, lawful basis, a derived "Contactable" column
+    (`contactableStatus`: suppressed > nurture-only > unverified-blocked > yes), and
+    "last touch" as the max of that contact's `message.created_at`/`reply.received_at`,
+    rendered as relative time (`relativeTime`).
+
+    T6.2 Decision-makers tab (`PeoplePane`, previously read-only): `Add contact` modal
+    (`ContactModal` + `addContact` action) — an address is stored `verified` only when
+    both an email and a real source are given (not "Guessed pattern — unverified"),
+    otherwise `unverified`, mirroring the mock's "stored as unverified until checked"
+    copy. `Use` button (`setPrimaryContact`) clears every other contact's `is_primary`
+    on that company, then sets the target — no DB transaction available via supabase-js
+    for a plain two-statement update, so this is sequential like every other multi-step
+    write in this codebase (e.g. T5.6's disqualify-then-suppress).
+
+    T6.3 `DecisionMakerCard`: reads `research_run.decision_maker` (already stored by
+    Phase 5's research call, just not selected/exposed until now — added to the
+    `research_run` select in `app/(app)/companies/[id]/page.tsx` and to `ResearchView`).
+    Matches the AI's named pick to an actual `contact` row by name
+    (`findContactByName`, case/whitespace-insensitive) and offers `Select as primary`
+    only when a match exists and isn't already primary.
+- verified: |
+    `npm run verify` green (122 tests; `tests/contacts.test.ts` = 13). `npm run build`
+    clean, all 17 routes (`/contacts` now real, 2.27 kB). Real e2e against the live
+    Supabase project, both via a direct RLS-scoped script and a real browser session
+    (manager + executive logins):
+    - T6.4 gate: advancing a fresh company past `contact_identification` with zero
+      contacts → refused with the exact trigger message; with a contact that has no
+      email/source → still refused; with a real named contact → succeeds. Confirmed
+      both via a direct DB probe AND in the browser (`Advance to Outreach` `disabled`
+      via DOM before adding a contact, `disabled: false` after — on Hansa Agrar Handel,
+      a real seeded company at `contact_identification` with no contacts).
+    - T6.2: added a real contact through the actual modal, got `Verified` provenance
+      (real source given), clicked `Use` — primary flag moved correctly, and the
+      Decision-maker AI card's `Select as primary` button appeared/disappeared exactly
+      as it should as the matched contact's primary status changed.
+    - T6.1: `/contacts` as manager (Rifat) showed all 10 contacts across markets,
+      correct badges (`Nurture only` for Verde's contact, `Blocked — unverified` for
+      the two unverified ones, real relative "last touch" for the two contacts with
+      actual message/reply rows); as executive (Nusrat) showed exactly her 3
+      market-scoped contacts — RLS did the scoping with zero app-level filtering code.
+    - RLS: an executive outside a company's market sees zero of its contacts, confirmed
+      by direct query.
+    Both companies used for live browser testing (Kyoto, Hansa) were restored to their
+    original seeded contacts/stage afterward via the admin client.
+- notes: |
+    "Contactable" precedence is suppressed > nurture-only > unverified > yes — a
+    suppressed address is blocked even for an otherwise-verified contact at a
+    non-nurture company, since "no further contact" (T9.6, not yet built) must win over
+    everything once it exists; the check is already wired in `isSuppressed` for when
+    that phase adds the suppression flow.
+    Did not build a company-selector variant of the Add-contact modal for `/contacts`
+    itself — PLAN assigns "Add contact modal" specifically to T6.2 (the company page),
+    and the mock's top-of-list "Add contact" button doesn't correspond to any modal
+    field for choosing a company either. `/contacts` stays a read-only list, as PLAN's
+    T6.1 wording (list only) says.
+- surprises: none — T6.1/T6.2/T6.3's dependencies (contact schema, RLS, `research_run.decision_maker`)
+    were already correct from Phases 1 and 5; this phase was pure application logic with
+    no broken pre-written files to fix, unlike Phase 5.
+
+---
+
 ## Handoff
 
-**Status:** Phase 5 complete (6/6). `npm run verify` green (109 tests). AI research pack
-is live end-to-end against the real Supabase project and the configured DeepSeek
-endpoint: Run/Re-run research, opportunity summary, recommendation actions, fit-score
-breakdown, missing-information → tasks, prioritisation + manager override, and
-disqualify + domain suppression are all wired to real data and audited.
+**Status:** Phase 6 complete (4/4). `npm run verify` green (122 tests). Decision-makers
+are fully live: `/contacts` list, per-company Add/set-primary, the AI decision-maker
+recommendation, and the SQL-enforced named-contact gate before Outreach.
 
-- Last completed task: T5.6 (all of T5.1–T5.6 shipped together in one pass, plus fixing
-  the two pre-written files T5.1/T5.2 depended on — see surprises above).
-- Current task: none open — next is T6.1 (Phase 6, Decision-makers).
+- Last completed task: T6.4 (all of T6.1–T6.4 shipped together in one pass).
+- Current task: none open — next is T7.1 (Phase 7, drafting/guardrails/review queue).
 - Blocked on: nothing technical.
-- Discovered vs PLAN.md (see the T5.1–T5.6 log entry above for full detail):
-  - `lib/ai/prompts/research.ts` needed a real schema in its OUTPUT section and a much
-    higher `maxTokens` (6000, not 2500) to work against the configured reasoning model.
-    Bumped to prompt version v2.
-  - `'use server'` files may only export async functions — plain constants belong in a
-    sibling lib module, not co-located in the action file. Likely to recur in T7–T9.
-  - Ranking and its "N of M" denominator must go through the acting user's own
-    RLS-scoped client, not admin — otherwise an executive's priority card would leak a
-    cross-market company count.
-  - Running research on a seeded company overwrites its placeholder seed `fit_score`
-    with a real (often lower) evidence-based score. Expected, not a bug — flagging so a
-    demo run isn't mistaken for one.
-- Operational notes (unchanged, plus one new): do NOT run `npm run build` while
-  `npm run dev` is running (clobbers `.next`). `npm run seed` does not load `.env.local`;
-  use `npx tsx --env-file=.env.local scripts/seed.ts --reset`. New: `npm run types`
-  (via the npm script wrapper) writes `lib/database.types.ts` as UTF-16 on this Windows
-  box — regenerate with `npx supabase gen types typescript --linked > lib/database.types.ts`
-  (direct bash redirect) instead, and confirm with `file lib/database.types.ts`.
-- Commit status: Phase 2–3 committed (`6b9694e`), Phase 4 committed. T5.1–T5.6 changes
-  are uncommitted — awaiting user go-ahead.
+- Known issue carried into T7: `lib/ai/prompts/draft.ts` (`maxTokens: 1500`) and
+  `lib/ai/prompts/followup.ts` (`maxTokens: 1200`) use the same "drafting" tier
+  (`deepseek-v4-pro`, a reasoning model) that `research.ts` needed 6000 tokens for
+  before it would reliably finish (see the T5.1–T5.6 entry above). Both are almost
+  certainly going to truncate the same way research.ts did — check/fix their
+  `maxTokens` and confirm a real call completes (`stop_reason: 'end_turn'`, not
+  `'max_tokens'`) before building UI on top of either.
+- Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
+  running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
+  `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
+  `lib/database.types.ts` with `npx supabase gen types typescript --linked > lib/database.types.ts`
+  (direct bash redirect), not `npm run types` (writes UTF-16 on this Windows box).
+- Commit status: Phases 2–5 committed. T6.1–T6.4 changes are uncommitted — awaiting
+  user go-ahead.
 - Next command for the next agent:
 
 ```
@@ -376,4 +447,5 @@ npm run verify
 npm run dev
 ```
 
-Then start T6.1 (`/contacts` list — verification state, contactable state, lawful basis).
+Then start T7.1 (`lib/ai/prompts/draft.ts` v1 — subject, body, `why[]`, `claims_used[]`), checking its `maxTokens` first.
+

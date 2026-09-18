@@ -112,10 +112,10 @@ likely thing to go wrong.
 
 ## Phase 6 — Decision-makers
 
-- [ ] T6.1 `/contacts` list with verification state, contactable state, lawful basis
-- [ ] T6.2 Company → Decision-makers tab, `Add contact` modal, set-primary
-- [ ] T6.3 Decision-maker recommendation panel (from the T5.2 call) with fallback contact
-- [ ] T6.4 Rule: a company cannot leave Contact identification without a named contact whose
+- [x] T6.1 `/contacts` list with verification state, contactable state, lawful basis
+- [x] T6.2 Company → Decision-makers tab, `Add contact` modal, set-primary
+- [x] T6.3 Decision-maker recommendation panel (from the T5.2 call) with fallback contact
+- [x] T6.4 Rule: a company cannot leave Contact identification without a named contact whose
       email has a recorded source. SQL-enforced
 
 ---

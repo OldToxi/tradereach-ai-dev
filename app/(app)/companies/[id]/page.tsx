@@ -57,7 +57,9 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
       .limit(40),
     supabase
       .from('research_run')
-      .select('summary, opportunity_summary, gaps, score, breakdown, suitability, priority_reason, created_at')
+      .select(
+        'summary, opportunity_summary, gaps, score, breakdown, suitability, priority_reason, decision_maker, created_at',
+      )
       .eq('company_id', params.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -90,6 +92,7 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
         breakdown: (latestRun.breakdown ?? []) as ResearchView['breakdown'],
         suitability: latestRun.suitability as ResearchView['suitability'],
         priorityReason: latestRun.priority_reason,
+        decisionMaker: latestRun.decision_maker as ResearchView['decisionMaker'],
         createdAt: latestRun.created_at,
       }
     : null

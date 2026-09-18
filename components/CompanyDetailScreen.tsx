@@ -23,6 +23,14 @@ import {
   DISQUALIFY_REASONS,
   type ResearchDepth,
 } from '@/lib/research'
+import { addContact, setPrimaryContact } from '@/lib/contact-actions'
+import {
+  contactGateBlocks,
+  contactGateReason,
+  findContactByName,
+  EMAIL_SOURCE_OPTIONS,
+  LAWFUL_BASIS_OPTIONS,
+} from '@/lib/contacts'
 
 export interface FactView {
   id: string
@@ -76,6 +84,7 @@ export interface ResearchView {
     wouldChangeIf: string
   }
   priorityReason: string | null
+  decisionMaker: { name: string | null; reasoning: string; fallback: string | null } | null
   createdAt: string
 }
 
@@ -155,7 +164,13 @@ export function CompanyDetailScreen({
   const unverifiedCriteria = criterionFacts.filter((f) => f.provenance !== 'verified').length
   const status = qualificationStatus(criterionFacts)
   const target = nextStage(company.stage)
-  const blocked = target !== null && isPastQualification(target) && unverifiedCriteria > 0
+  const qualificationBlocked = target !== null && isPastQualification(target) && unverifiedCriteria > 0
+  const contactBlocked = contactGateBlocks(target, company.contacts)
+  const blockReasons = [
+    ...(qualificationBlocked ? [gateReason(unverifiedCriteria)] : []),
+    ...(contactBlocked ? [contactGateReason()] : []),
+  ]
+  const blocked = blockReasons.length > 0
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -229,6 +244,7 @@ export function CompanyDetailScreen({
           canWrite={canWrite}
           criterionFacts={criterionFacts}
           unverifiedCriteria={unverifiedCriteria}
+          blockReasons={blockReasons}
           status={status}
           target={target}
           blocked={blocked}
@@ -243,7 +259,7 @@ export function CompanyDetailScreen({
           canOverridePriority={canOverridePriority}
         />
       ) : null}
-      {tab === 'people' ? <PeoplePane company={company} /> : null}
+      {tab === 'people' ? <PeoplePane company={company} canWrite={canWrite} /> : null}
       {tab === 'comms' ? <CommsPane /> : null}
       {tab === 'history' ? <HistoryPane company={company} /> : null}
     </div>
@@ -509,6 +525,7 @@ function OverviewPane({
   canWrite,
   criterionFacts,
   unverifiedCriteria,
+  blockReasons,
   status,
   target,
   blocked,
@@ -517,6 +534,7 @@ function OverviewPane({
   canWrite: boolean
   criterionFacts: FactView[]
   unverifiedCriteria: number
+  blockReasons: string[]
   status: { confirmed: number; total: number }
   target: string | null
   blocked: boolean
@@ -591,7 +609,7 @@ function OverviewPane({
               canWrite={canWrite}
               target={target}
               blocked={blocked}
-              unverifiedCriteria={unverifiedCriteria}
+              blockReasons={blockReasons}
             />
           </div>
         </div>
@@ -831,13 +849,13 @@ function StageControl({
   canWrite,
   target,
   blocked,
-  unverifiedCriteria,
+  blockReasons,
 }: {
   company: CompanyDetail
   canWrite: boolean
   target: string | null
   blocked: boolean
-  unverifiedCriteria: number
+  blockReasons: string[]
 }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
@@ -866,11 +884,11 @@ function StageControl({
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      {blocked ? (
-        <p className="small" style={{ color: 'var(--ochre)', margin: 0 }}>
-          {gateReason(unverifiedCriteria)}
+      {blockReasons.map((reason) => (
+        <p key={reason} className="small" style={{ color: 'var(--ochre)', margin: 0 }}>
+          {reason}
         </p>
-      ) : null}
+      ))}
       {error ? (
         <p className="small" style={{ color: 'var(--alert)', margin: 0 }}>
           {error}
@@ -1371,49 +1389,256 @@ function PriorityCard({
 /* Decision-makers (read-only here; full add-contact is T6.2)          */
 /* ------------------------------------------------------------------ */
 
-function PeoplePane({ company }: { company: CompanyDetail }) {
+function PeoplePane({ company, canWrite }: { company: CompanyDetail; canWrite: boolean }) {
   return (
-    <div className="card">
-      <header>
-        <h3>People found</h3>
-        <div className="grow" />
-      </header>
-      <div className="tablewrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Email</th>
-              <th>Source</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {company.contacts.length === 0 ? (
+    <div className="split">
+      <div className="card">
+        <header>
+          <h3>People found</h3>
+          <div className="grow" />
+          {canWrite ? <ContactModalButton companyId={company.id} /> : null}
+        </header>
+        <div className="tablewrap">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={5} className="muted" style={{ padding: 16 }}>
-                  No decision-makers found yet. Contact discovery arrives in Phase 6.
-                </td>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Email</th>
+                <th>Source</th>
+                <th>Status</th>
+                {canWrite ? <th /> : null}
               </tr>
-            ) : (
-              company.contacts.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <b>{c.fullName}</b>
-                    {c.isPrimary ? <span className="tag tag-ok" style={{ marginLeft: 6 }}>Primary</span> : null}
-                  </td>
-                  <td>{c.roleTitle ?? '—'}</td>
-                  <td className="small mono">{c.email ?? '—'}</td>
-                  <td className="small muted">{c.emailSource ?? '—'}</td>
-                  <td>
-                    <ProvBadge provenance={c.provenance} />
+            </thead>
+            <tbody>
+              {company.contacts.length === 0 ? (
+                <tr>
+                  <td colSpan={canWrite ? 6 : 5} className="muted" style={{ padding: 16 }}>
+                    No decision-makers found yet. Add one, or run AI research for a
+                    recommendation.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                company.contacts.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <b>{c.fullName}</b>
+                      {c.isPrimary ? <span className="tag tag-ok" style={{ marginLeft: 6 }}>Primary</span> : null}
+                    </td>
+                    <td>{c.roleTitle ?? '—'}</td>
+                    <td className="small mono">{c.email ?? '—'}</td>
+                    <td className="small muted">{c.emailSource ?? '—'}</td>
+                    <td>
+                      <ProvBadge provenance={c.provenance} />
+                    </td>
+                    {canWrite ? (
+                      <td>
+                        {!c.isPrimary ? <SetPrimaryButton companyId={company.id} contactId={c.id} /> : null}
+                      </td>
+                    ) : null}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <DecisionMakerCard company={company} canWrite={canWrite} />
+    </div>
+  )
+}
+
+function SetPrimaryButton({ companyId, contactId }: { companyId: string; contactId: string }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+
+  async function run() {
+    setPending(true)
+    const fd = new FormData()
+    fd.set('companyId', companyId)
+    fd.set('contactId', contactId)
+    const res = await setPrimaryContact(fd)
+    setPending(false)
+    if (res.ok) router.refresh()
+  }
+
+  return (
+    <button className="btn btn-sm" onClick={run} disabled={pending}>
+      {pending ? '…' : 'Use'}
+    </button>
+  )
+}
+
+function ContactModalButton({ companyId }: { companyId: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button className="btn btn-sm" onClick={() => setOpen(true)}>
+        Add contact
+      </button>
+      {open ? <ContactModal companyId={companyId} onClose={() => setOpen(false)} /> : null}
+    </>
+  )
+}
+
+function ContactModal({ companyId, onClose }: { companyId: string; onClose: () => void }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setPending(true)
+    setError(null)
+    const res = await addContact(new FormData(e.currentTarget))
+    setPending(false)
+    if (res.ok) {
+      router.refresh()
+      onClose()
+    } else {
+      setError(res.error ?? 'Something went wrong.')
+    }
+  }
+
+  return (
+    <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Add a decision-maker">
+        <header>
+          <h3>Add a decision-maker</h3>
+          <div className="grow" />
+          <button className="btn btn-sm" type="button" onClick={onClose}>
+            Close
+          </button>
+        </header>
+        <form onSubmit={onSubmit}>
+          <div className="body">
+            <input type="hidden" name="companyId" value={companyId} />
+            <div className="frow">
+              <div>
+                <label className="f" htmlFor="ct-name">
+                  Name
+                </label>
+                <input className="f" id="ct-name" name="fullName" placeholder="Selin Aydın" required />
+              </div>
+              <div>
+                <label className="f" htmlFor="ct-role">
+                  Role
+                </label>
+                <input className="f" id="ct-role" name="roleTitle" placeholder="Sourcing Manager" />
+              </div>
+            </div>
+            <div className="frow">
+              <div>
+                <label className="f" htmlFor="ct-email">
+                  Email
+                </label>
+                <input className="f" id="ct-email" name="email" type="email" placeholder="s.aydin@company.test" />
+              </div>
+              <div>
+                <label className="f" htmlFor="ct-source">
+                  Where it came from
+                </label>
+                <select className="f" id="ct-source" name="emailSource" defaultValue={EMAIL_SOURCE_OPTIONS[0]}>
+                  {EMAIL_SOURCE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <label className="f" htmlFor="ct-basis">
+              Lawful basis for contact
+            </label>
+            <select className="f" id="ct-basis" name="lawfulBasis" defaultValue={LAWFUL_BASIS_OPTIONS[0]}>
+              {LAWFUL_BASIS_OPTIONS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+            {error ? (
+              <p className="fm-err" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <footer>
+            <button className="btn" type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="btn btn-pri" type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save contact'}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* AI decision-maker recommendation (T6.3, from the T5.2 research call) */
+/* ------------------------------------------------------------------ */
+
+function DecisionMakerCard({ company, canWrite }: { company: CompanyDetail; canWrite: boolean }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+
+  if (!company.research) {
+    return (
+      <div className="card">
+        <header>
+          <h3>Most relevant decision-maker</h3>
+          <div className="grow" />
+          <span className="prov prov-a"><i />AI</span>
+        </header>
+        <div className="body">
+          <p className="small muted" style={{ margin: 0 }}>
+            Run AI research to get a decision-maker recommendation.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const dm = company.research.decisionMaker
+  const matched = dm?.name ? findContactByName(company.contacts, dm.name) : null
+
+  async function selectPrimary() {
+    if (!matched) return
+    setPending(true)
+    const fd = new FormData()
+    fd.set('companyId', company.id)
+    fd.set('contactId', matched.id)
+    const res = await setPrimaryContact(fd)
+    setPending(false)
+    if (res.ok) router.refresh()
+  }
+
+  return (
+    <div className="aiblock">
+      <div className="h">
+        <span className="prov prov-a"><i />AI analysis</span> Most relevant decision-maker
+      </div>
+      {dm?.name ? (
+        <p>
+          <b>
+            {dm.name}
+            {matched?.roleTitle ? `, ${matched.roleTitle}` : ''}.
+          </b>{' '}
+          {dm.reasoning}
+        </p>
+      ) : (
+        <p>{dm?.reasoning ?? 'No suitable decision-maker identified — a contact must be found first.'}</p>
+      )}
+      <div className="foot">
+        <span>{dm?.fallback ? `Fallback: ${dm.fallback}` : 'No fallback named.'}</span>
+        {canWrite && matched && !matched.isPrimary ? (
+          <button className="btn btn-sm" onClick={selectPrimary} disabled={pending}>
+            {pending ? '…' : 'Select as primary'}
+          </button>
+        ) : null}
       </div>
     </div>
   )

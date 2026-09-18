@@ -98,6 +98,8 @@ export const AUDIT = {
   PRIORITY_OVERRIDDEN: 'Priority overridden',
   WEIGHTS_CHANGED: 'Scoring weights changed',
   TASK_CREATED: 'Task created',
+  CONTACT_ADDED: 'Decision-maker added',
+  PRIMARY_CONTACT_SET: 'Primary decision-maker set',
   // AI
   AI_RESEARCH: 'Research run',
   AI_DRAFT: 'Draft generated',
