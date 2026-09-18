@@ -13,6 +13,7 @@
  */
 import { admin } from '../lib/supabase/admin'
 import type { Database } from '../lib/database.types'
+import { SCORING_CRITERIA, DEFAULT_WEIGHTS, distributeBreakdown } from '../lib/scoring'
 
 type UserRole = Database['public']['Enums']['user_role']
 type Stage = Database['public']['Enums']['stage']
@@ -295,6 +296,23 @@ async function seedCatalog() {
   console.log(`  ${PRODUCTS.length} products, ${MARKETS.length} markets`)
 }
 
+async function seedScoring() {
+  const rows = SCORING_CRITERIA.map((c, i) => ({
+    criterion_key: c.key,
+    label: c.label,
+    weight: DEFAULT_WEIGHTS[c.key],
+    sort_order: i + 1,
+  }))
+  // ignoreDuplicates: never clobber a manager's saved weights on re-seed. The
+  // migration 0013 already inserted the defaults, so this only heals a missing row.
+  const { error } = await admin.from('score_weight').upsert(rows, {
+    onConflict: 'criterion_key',
+    ignoreDuplicates: true,
+  })
+  if (error) throw new Error(`score_weight: ${error.message}`)
+  console.log(`  ${SCORING_CRITERIA.length} scoring weights`)
+}
+
 async function seedMarketNotes() {
   const { data: markets } = await admin.from('market').select('id, country')
   const idByCountry: Record<string, string> = {}
@@ -397,6 +415,61 @@ async function seedCompanies() {
   console.log(`  ${SOURCES.length} sources, ${CONTACTS.length} contacts`)
 }
 
+async function seedResearch() {
+  const band = (score: number) =>
+    score >= 80 ? 'proceed' : score >= 60 ? 'research_more' : score >= 40 ? 'nurture' : 'disqualify'
+
+  let count = 0
+  for (const c of COMPANIES) {
+    const companyId = ids.companies[c.key]
+    const product = PRODUCT_BY_KEY[c.key] ?? 'Jute yarn'
+    const score = c.fit_score
+    const breakdown = distributeBreakdown(score, DEFAULT_WEIGHTS)
+    const primary = CONTACTS.find((ct) => ct.company === c.key && ct.is_primary)
+    const decisionMaker = primary
+      ? { name: primary.full_name, reasoning: `Primary contact — ${primary.role_title} (${primary.provenance}).`, fallback: null }
+      : { name: null, reasoning: 'No decision-maker identified yet.', fallback: null }
+
+    const { data: run, error } = await admin
+      .from('ai_run')
+      .insert({
+        company_id: companyId,
+        prompt_name: 'research',
+        prompt_version: 'v2',
+        model: 'deepseek-v4-pro',
+        input_tokens: 1240,
+        output_tokens: 920,
+        cost_usd: 0.0042,
+        created_at: daysAgo(6),
+      })
+      .select('id')
+      .single()
+    if (error) throw new Error(`ai_run ${c.name}: ${error.message}`)
+
+    const { error: rErr } = await admin.from('research_run').insert({
+      company_id: companyId,
+      ai_run_id: run.id,
+      summary: `${c.name} is a ${c.company_type.toLowerCase()} in ${c.market}, assessed for ${product} fit.`,
+      opportunity_summary: `${c.name} matches the ${product} line well enough to work — see the fit score and gaps.`,
+      gaps: [],
+      score,
+      breakdown,
+      suitability: {
+        recommendation: band(score),
+        reasoning: `Score ${score} falls in the ${band(score)} band under the configured weights.`,
+        confidence: 'medium',
+        wouldChangeIf: 'A missing qualification fact surfaces.',
+      },
+      priority_reason: 'Seeded baseline ranking.',
+      decision_maker: decisionMaker,
+      created_at: daysAgo(6),
+    })
+    if (rErr) throw new Error(`research_run ${c.name}: ${rErr.message}`)
+    count++
+  }
+  console.log(`  ${count} research runs`)
+}
+
 async function seedConversations() {
   const rifat = ids.users['rifat.hasan@anwargroup.test']
   const sha256 = async (s: string) => {
@@ -484,7 +557,7 @@ async function seedConversations() {
 async function reset() {
   console.log('resetting app data (auth users kept)…')
   const noId = '00000000-0000-0000-0000-000000000000'
-  for (const t of ['audit_event', 'reply', 'message', 'meeting', 'task', 'weekly_readout', 'market_note', 'fact', 'source', 'contact', 'ai_run', 'company'] as const) {
+  for (const t of ['audit_event', 'reply', 'message', 'meeting', 'task', 'weekly_readout', 'market_note', 'fact', 'source', 'contact', 'research_run', 'ai_run', 'company'] as const) {
     await admin.from(t).delete().neq('id', noId)
   }
   await admin.from('suppression').delete().neq('email_or_domain', '')
@@ -496,8 +569,10 @@ async function main() {
   console.log('seeding TradeReach AI…')
   await seedUsers()
   await seedCatalog()
+  await seedScoring()
   await seedMarketNotes()
   await seedCompanies()
+  await seedResearch()
   await seedConversations()
 
   console.log(`\ndone. sign in as any of:`)

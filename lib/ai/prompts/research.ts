@@ -9,9 +9,16 @@
  * same record six times. Keep them together.
  *
  * Output is written with `ai` provenance. It is never a verified fact.
+ *
+ * The fit-score weights are not hardcoded here — they come from the `score_weight`
+ * table (Settings → Scoring) and are injected into the system prompt by
+ * `researchPromptWithWeights`. The stored breakdown's `max` per criterion is the
+ * weight that was in force when the run happened, which is exactly what lets
+ * lib/scoring.ts re-derive a past score under a later set of weights.
  */
 import { z } from 'zod'
 import type { PromptSpec } from '../client'
+import { SCORING_CRITERIA, DEFAULT_WEIGHTS, type WeightMap } from '../../scoring'
 
 export const researchSchema = z.object({
   /** 2–4 sentences. The neutral profile shown on the Research tab. */
@@ -62,20 +69,18 @@ export const researchSchema = z.object({
 
 export type ResearchOutput = z.infer<typeof researchSchema>
 
-export const researchPrompt: PromptSpec<ResearchOutput> = {
-  name: 'research',
-  version: 'v2',
-  tier: 'drafting',
-  // deepseek-v4-pro (the configured "drafting" tier model) is a reasoning model: it
-  // spends real output tokens on an internal `thinking` block before the `text` block
-  // with the actual JSON. That thinking block routinely runs 2000-3000 tokens for this
-  // prompt's context size, on top of the ~1500-2500 tokens the full six-field JSON
-  // response needs. A lower budget (2500, then 3500) was silently truncating either the
-  // JSON mid-object or the whole text block — see WORKLOG.md T5.1-T5.2 surprises.
-  maxTokens: 6000,
-  temperature: 0.3,
-  schema: researchSchema,
-  system: `You are an export development analyst at Anwar Group, a Bangladeshi industrial
+/**
+ * The system prompt with the configured weights substituted in. Two places change:
+ * the SCORING list, and the `max` on each row of the example breakdown. Keeping
+ * `max` equal to the weight is what makes a stored breakdown re-scorable.
+ */
+export function researchSystem(weights: WeightMap): string {
+  const scoringLines = SCORING_CRITERIA.map((c) => `- ${c.label}: ${weights[c.key]}`).join('\n')
+  const breakdownExample = SCORING_CRITERIA.map(
+    (c) => `    { "criterion": "${c.label}", "max": ${weights[c.key]}, "awarded": 0, "reason": "..." }`,
+  ).join(',\n')
+
+  return `You are an export development analyst at Anwar Group, a Bangladeshi industrial
 group selling jute yarn, woven jute bags, knit garments and ceramic tableware into
 international markets. You assess whether a foreign company is worth approaching.
 
@@ -95,14 +100,9 @@ a confident score on two facts is worse than an honest low one.
 Never invent. If you do not know their volume, that is a gap, not an estimate. Do not
 restate an unverified claim as though it were established; refer to it as claimed.
 
-SCORING — 100 points, fixed weights
+SCORING — 100 points, weighted as configured
 
-- Imports this product category already: 30
-- Buys from Bangladesh or South Asia today: 20
-- Volume fits our monthly capacity: 15
-- Certification requirements we already meet: 15
-- A named decision-maker has been identified: 10
-- Market priority: 10
+${scoringLines}
 
 Award partial points and say why in one short clause. The awarded values must sum to the
 score you return.
@@ -147,12 +147,7 @@ exactly this shape and these field names:
   ],
   "score": 0,
   "breakdown": [
-    { "criterion": "Imports this product category already", "max": 30, "awarded": 0, "reason": "..." },
-    { "criterion": "Buys from Bangladesh or South Asia today", "max": 20, "awarded": 0, "reason": "..." },
-    { "criterion": "Volume fits our monthly capacity", "max": 15, "awarded": 0, "reason": "..." },
-    { "criterion": "Certification requirements we already meet", "max": 15, "awarded": 0, "reason": "..." },
-    { "criterion": "A named decision-maker has been identified", "max": 10, "awarded": 0, "reason": "..." },
-    { "criterion": "Market priority", "max": 10, "awarded": 0, "reason": "..." }
+${breakdownExample}
   ],
   "suitability": {
     "recommendation": "proceed | research_more | nurture | disqualify",
@@ -166,8 +161,30 @@ exactly this shape and these field names:
 
 The six "breakdown" rows are always present, in this order, even when awarded is 0 — that is
 how a reader sees what dragged the score down. gaps has at most 6 entries. The "awarded"
-values must sum to "score".`,
+values must sum to "score".`
 }
+
+/** The spec with the currently configured weights substituted into the system prompt. */
+export function researchPromptWithWeights(weights: WeightMap): PromptSpec<ResearchOutput> {
+  return {
+    name: 'research',
+    version: 'v2',
+    tier: 'drafting',
+    // deepseek-v4-pro (the configured "drafting" tier model) is a reasoning model: it
+    // spends real output tokens on an internal `thinking` block before the `text` block
+    // with the actual JSON. That thinking block routinely runs 2000-3000 tokens for this
+    // prompt's context size, on top of the ~1500-2500 tokens the full six-field JSON
+    // response needs. A lower budget (2500, then 3500) was silently truncating either the
+    // JSON mid-object or the whole text block — see WORKLOG.md T5.1-T5.2 surprises.
+    maxTokens: 6000,
+    temperature: 0.3,
+    schema: researchSchema,
+    system: researchSystem(weights),
+  }
+}
+
+/** The default-weights spec, kept for tests and any caller that does not care about weights. */
+export const researchPrompt: PromptSpec<ResearchOutput> = researchPromptWithWeights(DEFAULT_WEIGHTS)
 
 /** Convenience wrapper used by the server action in T5.3. */
 export function researchUserMessage(renderedContext: string, marketPriority: string) {

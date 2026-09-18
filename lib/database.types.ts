@@ -815,6 +815,30 @@ export type Database = {
           },
         ]
       }
+      score_weight: {
+        Row: {
+          criterion_key: string
+          label: string
+          sort_order: number
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          criterion_key: string
+          label: string
+          sort_order: number
+          updated_at?: string
+          weight: number
+        }
+        Update: {
+          criterion_key?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       source: {
         Row: {
           company_id: string

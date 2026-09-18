@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { admin } from '@/lib/supabase/admin'
 import { SettingsScreen } from '@/components/SettingsScreen'
 import { roleIsValid, type TeamMemberView } from '@/lib/users'
+import { weightsFromRows } from '@/lib/scoring'
 
 export default async function SettingsPage({
   searchParams,
@@ -55,6 +56,13 @@ export default async function SettingsPage({
     marketOptions = (markets ?? []).map((m) => m.country)
   }
 
+  const supabase = await createServerClient()
+  const { data: weightRows } = await supabase
+    .from('score_weight')
+    .select('criterion_key, weight')
+    .order('sort_order')
+  const weights = weightsFromRows(weightRows ?? [])
+
   return (
     <SettingsScreen
       role={user.role}
@@ -65,6 +73,7 @@ export default async function SettingsPage({
       team={team}
       marketOptions={marketOptions}
       currentUserId={user.id}
+      weights={weights}
     />
   )
 }

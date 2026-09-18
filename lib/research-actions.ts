@@ -14,8 +14,9 @@ import { requirePermission, canWrite, canOverridePriority } from './session'
 import { writeAudit, AUDIT } from './audit'
 import { runPrompt, AIError } from './ai/client'
 import { buildCompanyContext, buildProductContext, renderContext } from './ai/context'
-import { researchPrompt, researchUserMessage } from './ai/prompts/research'
+import { researchPromptWithWeights, researchUserMessage } from './ai/prompts/research'
 import { factsFromBreakdown, RESEARCH_DEPTHS, DISQUALIFY_REASONS, type ResearchDepth } from './research'
+import { weightsFromRows } from './scoring'
 
 export type ResearchActionState = {
   ok: boolean
@@ -61,7 +62,15 @@ export async function runResearch(formData: FormData): Promise<ResearchActionSta
     const marketPriority = company.marketRow?.priority ?? 'medium'
     const userMessage = `${researchUserMessage(rendered, marketPriority)}\n\nDEPTH: ${RESEARCH_DEPTHS[depth]}`
 
-    result = await runPrompt(researchPrompt, userMessage, { companyId })
+    // Score under the currently configured weights (Settings → Scoring), so a new
+    // run and a recalculated past run agree on what "fit" means.
+    const { data: weightRows } = await supabase
+      .from('score_weight')
+      .select('criterion_key, weight')
+      .order('sort_order')
+    const weights = weightsFromRows(weightRows ?? [])
+
+    result = await runPrompt(researchPromptWithWeights(weights), userMessage, { companyId })
   } catch (err) {
     return { ok: false, error: err instanceof AIError ? err.message : 'AI research failed.' }
   }

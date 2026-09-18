@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { disconnectGmail } from '@/lib/gmail-actions'
 import { UsersPane } from '@/components/UsersPane'
+import { ScoringPane } from '@/components/ScoringPane'
 import type { TeamMemberView } from '@/lib/users'
+import type { WeightMap } from '@/lib/scoring'
 
 export interface GmailStatus {
   connected: boolean
@@ -29,6 +31,7 @@ export function SettingsScreen({
   team,
   marketOptions,
   currentUserId,
+  weights,
 }: {
   role: string
   gmailStatus: GmailStatus
@@ -38,6 +41,7 @@ export function SettingsScreen({
   team: TeamMemberView[]
   marketOptions: string[]
   currentUserId: string
+  weights: WeightMap
 }) {
   const [tab, setTab] = useState(initialTab)
   const isManager = role === 'manager'
@@ -72,6 +76,8 @@ export function SettingsScreen({
         <ConnectorsPane gmailStatus={gmailStatus} />
       ) : tab === 'users' ? (
         <UsersPane team={team} marketOptions={marketOptions} currentUserId={currentUserId} />
+      ) : tab === 'score' ? (
+        <ScoringPane weights={weights} />
       ) : (
         <div className="card">
           <div className="body">

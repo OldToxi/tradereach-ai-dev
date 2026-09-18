@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`██████████████████████████░░░░` **87%** — 68 of 78 tasks complete
+`███████████████████████████░░░` **88%** — 69 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -37,7 +37,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 8 · Gmail connector | 5 | 5 ✓ |
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
-| 11 · Control surfaces | 2 | 5 |
+| 11 · Control surfaces | 3 | 5 |
 | 12 · Tests, docs, deploy | 0 | 6 |
 <!-- PROGRESS:END -->
 
@@ -989,22 +989,65 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T11.3 — Settings → Scoring: weight sliders, thresholds, recalc on save, history preserved
+- when: 2026-09-18 23:40 UTC
+- agent: claude-code
+- files: lib/scoring.ts, lib/scoring-actions.ts, components/ScoringPane.tsx, lib/ai/prompts/research.ts, lib/research-actions.ts, supabase/migrations/0013_scoring.sql, scripts/seed.ts, tests/scoring.test.ts, components/SettingsScreen.tsx, app/(app)/settings/page.tsx
+- done: |
+    Fit-score weights moved out of hardcoded values into a `score_weight` table with a
+    Settings → Scoring tab. Six sliders (0–40, must total 100), thresholds card, Save.
+    On save the action re-derives every company's fit_score from its latest stored
+    `research_run.breakdown` (no AI call), writes one `AUDIT.WEIGHTS_CHANGED` row naming
+    what moved and how many scores changed, and never rewrites historical breakdowns.
+    The research prompt is now weight-parameterised (`researchSystem(weights)`) instead of
+    a hardcoded list, and `runResearch` reads the current weights so a fresh run and a
+    recalculated past run agree. Seed now writes score_weight defaults (idempotent,
+    `ignoreDuplicates`) plus `ai_run` + `research_run` rows for the 12 demo companies via
+    `distributeBreakdown`, so recalc is demonstrable.
+- verified: |
+    `npm run verify` green — 216 tests, 18 files (new `tests/scoring.test.ts` = 11).
+    Migration 0013 applied to the remote (`supabase db push`), types regenerated.
+    `npx tsx --env-file=.env.local scripts/seed.ts --reset` → 6 scoring weights,
+    12 research runs. Unit tests prove the recalc maths: `distributeBreakdown`/`recalcScore`
+    round-trip at 0/39/58/79/91/100; a stored breakdown re-scores under new weights; the
+    score clamps to 0–100.
+- notes: |
+    Criterion keys match the qualification fact keys in lib/research.ts so a scored
+    criterion can populate the Qualification tab (except `market_priority`, which describes
+    the market). The `max` on each stored breakdown row is the weight in force when the
+    run happened; `awarded/max` is the fraction earned, so scaling it by a later weight is
+    the only way to re-score a past run without calling the model. No new service-role
+    caller: the recalc rides the manager's user client (managers read/write all markets
+    via existing RLS). Not a live-tested save (no interactive sign-in this session), but
+    RLS read (any signed-in user) and manager-write policies are covered by the same
+    pattern proven in T11.2.
+- surprises: |
+    `reset()` in scripts/seed.ts deleted `ai_run` but not `research_run`; once seed began
+    creating `research_run` rows, that FK would have made `--reset` fail, so `research_run`
+    was added to the reset list (before `ai_run`). The mock titles the panel "jute yarn";
+    scoring is global across products in this build, so the pane is titled "Fit scoring
+    weights" without a product qualifier — a deliberate, minor deviation from the mock.
+
+---
+
 ## Handoff
 
-**Status:** Phase 11 in progress. T11.1 and T11.2 complete, tested, committed. Remaining
-in Phase 11: T11.3–T11.5 (3 of 5 tasks).
+**Status:** Phase 11 in progress. T11.1, T11.2 and T11.3 complete, tested, committed.
+Remaining in Phase 11: T11.4 and T11.5 (2 of 5 tasks).
 
-- Last completed task: T11.2 Settings → Users & roles. `npm run verify` green — 205
-  tests, 17 files.
-- Current task: none open — next code task is T11.3 (`Settings → Scoring`). Note: T0.5
+- Last completed task: T11.3 Settings → Scoring. `npm run verify` green — 216 tests,
+  18 files.
+- Current task: none open — next code task is T11.4 (`Settings → AI workflow`). Note: T0.5
   (Vercel deploy, a human step) is still unchecked, so `npm run progress` reports
   "next: T0.5"; that does not block Phase 11.
-- Blocked on: nothing. The linked project is reachable; all migrations are applied.
-- New files this phase: `lib/users.ts`, `lib/user-actions.ts`, `components/UsersPane.tsx`,
-  `tests/users.test.ts`; `lib/audit.ts` gained `USER_INVITED`; `lib/audit-view.ts`,
-  `lib/supabase/admin.ts` header and `AGENTS.md` §5 updated (fifth service-role caller);
-  `components/SettingsScreen.tsx` and `app/(app)/settings/page.tsx` now wire the real
-  Users tab.
+- Blocked on: nothing. The linked project is reachable; migration 0013 is applied and
+  types regenerated.
+- New files this phase: `lib/scoring.ts`, `lib/scoring-actions.ts`,
+  `components/ScoringPane.tsx`, `tests/scoring.test.ts`,
+  `supabase/migrations/0013_scoring.sql`; `lib/ai/prompts/research.ts` and
+  `lib/research-actions.ts` now weight-parameterised; `scripts/seed.ts` seeds weights +
+  research runs; `components/SettingsScreen.tsx` and `app/(app)/settings/page.tsx` wire
+  the Scoring tab.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. Regenerate
@@ -1013,7 +1056,7 @@ in Phase 11: T11.3–T11.5 (3 of 5 tasks).
   targets the local Docker stack; use `supabase db push` for the remote. Existing Gmail
   tokens predate the `gmail.readonly` scope and will 403 until the user re-runs the
   OAuth consent.
-- Commit status: T11.1 and T11.2 committed. No uncommitted changes.
+- Commit status: T11.1–T11.3 committed.
 - Next command for the next agent:
 
 ```
@@ -1021,5 +1064,5 @@ npm run verify
 npm run dev
 ```
 
-Then start T11.3 from PLAN.md.
+Then start T11.4 from PLAN.md.
 
