@@ -79,16 +79,16 @@ likely thing to go wrong.
 
 ## Phase 4 — Companies and research
 
-- [ ] T4.1 `/companies` table with the mock's five filters, fit score bars, gap counts.
+- [x] T4.1 `/companies` table with the mock's five filters, fit score bars, gap counts.
       RLS scopes executives to their markets automatically — verify by switching user
-- [ ] T4.2 `Add company` modal → creates company + unverified facts
-- [ ] T4.3 `/companies/[id]` shell with the six tabs from the mock
-- [ ] T4.4 Overview tab: company record as `fact` rows, each with its provenance badge.
+- [x] T4.2 `Add company` modal → creates company + unverified facts
+- [x] T4.3 `/companies/[id]` shell with the six tabs from the mock
+- [x] T4.4 Overview tab: company record as `fact` rows, each with its provenance badge.
       Promote-to-verified control, gated on a source, writes `confirmed_by` + audit row
-- [ ] T4.5 Research & sources tab: source table, `Add source` modal, analyst notes stored
+- [x] T4.5 Research & sources tab: source table, `Add source` modal, analyst notes stored
       as `human_approved` and never rewritten by AI
-- [ ] T4.6 Qualification tab: six criteria, per-criterion confirm, `4 of 6 confirmed` counter
-- [ ] T4.7 Stage gate — advancing past Qualification is blocked while any qualification fact
+- [x] T4.6 Qualification tab: six criteria, per-criterion confirm, `4 of 6 confirmed` counter
+- [x] T4.7 Stage gate — advancing past Qualification is blocked while any qualification fact
       is unverified. Enforce in SQL, surface the reason in the UI
 
 ---

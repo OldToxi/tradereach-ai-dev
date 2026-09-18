@@ -22,7 +22,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`█████████░░░░░░░░░░░░░░░░░░░░░` **31%** — 24 of 78 tasks complete
+`████████████░░░░░░░░░░░░░░░░░░` **40%** — 31 of 78 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
@@ -30,7 +30,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 1 · Foundation | 10 | 10 ✓ |
 | 2 · Auth & shell | 5 | 5 ✓ |
 | 3 · Catalog | 4 | 4 ✓ |
-| 4 · Companies & research | 0 | 7 |
+| 4 · Companies & research | 7 | 7 ✓ |
 | 5 · AI research pack | 0 | 6 |
 | 6 · Decision-makers | 0 | 4 |
 | 7 · Drafting & review | 0 | 7 |
@@ -196,20 +196,49 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T4.1 — /companies table + filters + fit-score bars + gap counts
+- when: 2026-09-18 19:45 UTC
+- agent: opencode
+- files: app/(app)/companies/page.tsx, components/CompaniesScreen.tsx, lib/companies.ts, app/globals.css, tests/companies.test.ts
+- done: `/companies` server page fetches `company` (owner full_name embedded via `profiles!company_owner_id_fkey`), qualification-criterion `fact`s, primary `contact`s and `market`s through the user JWT, then derives per-company `gapCount` (criterion facts still unverified), `decisionMaker` (primary contact) and `ownerName`. `CompaniesScreen` renders the table (Company / Market / Type / AI fit score with `.bar` band / Data / Stage / Decision-maker / Owner / Next action) with the mock's four filter controls (stage, market, fit-score band, missing-data checkbox) and a "N of M companies shown" count line. New `lib/companies.ts` holds `STAGE_LABELS`, `fitBarClass` (80/60 thresholds), `companyNextAction` (stage-driven) and `dataCell` (missing/complete/not-researched). Added `.bar`/`.score` CSS to globals.css.
+- verified: `npm run verify` green (84 tests; `tests/companies.test.ts` = 8). e2e on :3001 switching users — manager sees all 12 companies; executive Nusrat (Japan/UAE) sees exactly 4; executive Tanvir (Brazil/Egypt) sees exactly 2. Owner names, decision-makers, gap tags and fit-score bars all render.
+- notes: PLAN says "five filters" but the mock has four controls (stage, market, fit, missing-data); implemented the mock's four. "Next action" is a stable stage-driven fallback (T10.x makes it precise); the "Add company" / "Bulk AI research" / "Export" buttons are deferred to T4.2 / T5.x / T11.1. Gap count = unverified qualification criteria; a company with no criterion facts shows "Not researched" rather than a fabricated "Complete".
+- surprises: `profiles` RLS lets managers/commercial/auditors read any profile but executives only their own — so owner names for colleagues would be null for executives. Does not bite in seed data (each executive's visible companies are self-owned) and the page falls back to "—" when null. Worth revisiting when T11.2 reworks Users & roles.
+
+---
+
+### T4.2–T4.7 — company detail: add modal, six-tab detail, overview facts, sources & notes, qualification checklist, stage gate
+- when: 2026-09-18 20:05 UTC
+- agent: opencode
+- files: supabase/migrations/0006_source_supports.sql, lib/database.types.ts (regen), lib/company-facts.ts, lib/company-actions.ts, components/CompanyModal.tsx, components/CompaniesScreen.tsx, components/CompanyDetailScreen.tsx, app/(app)/companies/page.tsx, app/(app)/companies/[id]/page.tsx, scripts/seed.ts, app/globals.css, tests/company-facts.test.ts
+- done: |
+    T4.2 `CompanyModal` (name/website/market/type/product/owner; "Run AI research" checkbox disabled until T5) + `addCompany` server action (manager/executive/commercial, `company_insert` RLS, `COMPANY_ADDED` audit).
+    T4.3 `/companies/[id]` server page (404 when RLS hides the row) + `CompanyDetailScreen` with the mock's six tabs (Overview / Research & sources / Qualification / Decision-makers / Communication / History).
+    T4.4 Overview tab renders the company record as fact rows with provenance badges (`provenanceClass`/`provenanceLabel`), promote-to-verified control gated on a chosen source, and a pipeline stage control (`Move to a specific stage` / `Advance to X`) with the qualification gate surfaced.
+    T4.5 Research & sources tab: sources table, `Add source` modal (title/url, new `supports` column, quality), analyst notes listed with a human-approved badge + note composer; notes stored as `analyst_note_<ts>` facts and excluded from the Overview kv.
+    T4.6 Qualification tab: per-criterion confirm with `CRITERION_CONFIRMED` audit, `N of M confirmed` counter, `qualificationStatus()` derived from the company's own criterion facts.
+    T4.7 Stage gate: `gateBlocksAdvance`/`gateReason` mirror the DB `enforce_stage_gate` trigger; `changeStage` surfaces the SQL error reason in the UI. History tab filters audit by `object_type='company' AND object_id=<id>`.
+- verified: `npm run verify` green (96 tests, incl. new `tests/company-facts.test.ts` = 12). e2e on :3001 (manager + executive via mailto-auth cookie): yildiz detail 200 with facts, provenance badges, owner, verify controls, "End of the pipeline"; kyoto qualification "1 of 5 confirmed"; RLS — executive nusrat gets 404 on a Türkiye company; direct DB probe — `addCompany`/`addSource`/`addAnalystNote` ok, promote-with-source → `verified`, person-only verify allowed (rule 1), `ai_cannot_be_confirmed` blocks confirming an AI fact, and `enforce_stage_gate` returns "Cannot advance: 4 qualification field(s) are still unverified" for kyoto. Reseeded clean after the probes.
+- notes: the six canonical `QUALIFICATION_CRITERIA` act as the vocabulary/empty-state for the checklist, but the live counter and per-criterion confirm run against the company's own `is_qualification_criterion` facts, so non-canonical criterion keys (kyoto's `importer_licence`, `annual_volume`) are handled consistently with the gate. Analyst notes are `human_approved` + `confirmed_by` and never shown in the Overview record. Promote-to-verified requires a source in the action (stricter than the DB rule 1, matching the mock). `canWrite` = `role !== 'auditor'`; auditor sees the tabs read-only (no verify/confirm/stage/source/note controls).
+- surprises: `enforce_stage_gate` is `BEFORE UPDATE OF stage`, so a company with ZERO criterion facts can advance past Qualification (nothing is unverified). Left as-is — it matches the letter of T4.7 ("blocked while any qualification fact is unverified") and Phase 5 populates facts before advancement; flagging here for T7/T10 if a "must have all six verified" gate is wanted.
+
+---
+
 ## Handoff
 
-**Status:** T3.4 complete. `npm run verify` green (76 tests). **Phase 3 (Catalog) is now complete (4/4).**
+**Status:** Phase 4 complete (7/7). `npm run verify` green (96 tests). `/companies` list + full company detail (six tabs, promote-to-verified, sources, analyst notes, qualification checklist, stage gate) are live and RLS-scoped.
 
-- Last completed task: T3.4
-- Current task: none open — next is T4.1 (`/companies` table with the mock's five filters, fit score bars, gap counts. RLS scopes executives to their markets automatically — verify by switching user).
+- Last completed task: T4.7 (all of T4.2–T4.7 shipped together in one pass).
+- Current task: none open — next is T5.1 (Phase 5, AI research pack).
 - Blocked on: nothing technical.
-- Discovered vs PLAN.md (see T3.1–T3.4 log entries for detail):
-  - Seed `seedCatalog` silently failed to insert products since Phase 1 (`product.name` not unique → `onConflict:'name'` upsert errored, ignored). Fixed; catalog writes now throw.
-  - `lib/ai/context.ts` reserved-key list was incomplete (missing samples, distributor_appointment, technical_compliance, rebate) and the product allowlist was untestable. Both fixed; `RESERVED_MATTERS` is now the single source of truth in `lib/guardrails.ts`.
-  - `market.priority`/`market.status` are nullable in generated types (DB defaults don't set the type); the `/markets` page coerces to `medium`/`active`.
-  - Market guardrails (`required_before_sending`, `legal_note`) now live on `market` (0005); `marketGuardrails()` in `lib/catalog.ts` is the shared fail-closed reader for both the card and the future T7.4 pre-send checks.
+- Discovered vs PLAN.md (see T3.1–T4.7 log entries for detail):
+  - PLAN says T4.1 has "five filters"; the mock has four. Built the mock's four.
+  - `profiles` RLS: executives read only their own profile → colleague owner names are null for them (falls back to "—").
+  - `enforce_stage_gate` only counts *unverified* criteria, so a company with zero criterion facts can advance past Qualification. Matches the letter of T4.7; note for T7/T10 if stricter gating is wanted.
+  - `source.supports` is a new column (0006) added to capture "what the source supports" from the mock's Add source modal; `source_type` stays null for manual adds.
+  - Seed now sets `object_id` on company-scoped audit rows so the detail History tab has demo rows.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is running (clobbers `.next`). `npm run seed` does not load `.env.local`; use `npx tsx --env-file=.env.local scripts/seed.ts --reset`.
-- Commit status: changes not yet committed — awaiting explicit user go-ahead per repo policy.
+- Commit status: Phase 2–3 committed (`6b9694e`). T4.1–T4.7 changes are uncommitted — awaiting user go-ahead.
 - Next command for the next agent:
 
 ```
@@ -217,4 +246,4 @@ npm run verify
 npm run dev
 ```
 
-Then start T4.1 (the `/companies` list).
+Then start T5.1 (AI research pack — one call, six outputs).

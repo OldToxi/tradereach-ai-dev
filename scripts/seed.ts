@@ -473,8 +473,8 @@ async function seedConversations() {
   await admin.from('audit_event').insert([
     { actor_id: rifat, actor_label: 'Rifat Hasan', event: 'Approved outreach', object_type: 'message', detail: 'Approved v3, 2 edits from AI draft', created_at: daysAgo(4) },
     { actor_label: 'System', event: 'Gmail draft created', object_type: 'message', detail: 'gmail.compose · recipient on .test allowlist', created_at: daysAgo(4) },
-    { actor_label: 'AI (sonnet-class)', event: 'Research run', object_type: 'company', detail: '14 pages read · 6 sources kept · 2 gaps raised', created_at: daysAgo(6) },
-    { actor_id: ids.users['tanvir.alam@anwargroup.test'], actor_label: 'Tanvir Alam', event: 'Company disqualified', object_type: 'company', detail: 'Reason: export licence unverifiable · domain suppressed', created_at: daysAgo(1) },
+    { actor_label: 'AI (sonnet-class)', event: 'Research run', object_type: 'company', object_id: ids.companies.yildiz, detail: '14 pages read · 6 sources kept · 2 gaps raised', created_at: daysAgo(6) },
+    { actor_id: ids.users['tanvir.alam@anwargroup.test'], actor_label: 'Tanvir Alam', event: 'Company disqualified', object_type: 'company', object_id: ids.companies.nileco, detail: 'Reason: export licence unverifiable · domain suppressed', created_at: daysAgo(1) },
     { actor_id: ids.users['tanvir.alam@anwargroup.test'], actor_label: 'Tanvir Alam', event: 'Access refused', detail: 'executive attempted: read Türkiye records', created_at: daysAgo(1) },
   ])
 

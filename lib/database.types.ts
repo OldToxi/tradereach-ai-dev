@@ -723,6 +723,7 @@ export type Database = {
           quality: string | null
           retrieved_at: string
           source_type: string | null
+          supports: string | null
           title: string
           url: string | null
         }
@@ -732,6 +733,7 @@ export type Database = {
           quality?: string | null
           retrieved_at?: string
           source_type?: string | null
+          supports?: string | null
           title: string
           url?: string | null
         }
@@ -741,6 +743,7 @@ export type Database = {
           quality?: string | null
           retrieved_at?: string
           source_type?: string | null
+          supports?: string | null
           title?: string
           url?: string | null
         }
