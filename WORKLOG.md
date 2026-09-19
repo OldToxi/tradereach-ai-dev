@@ -1333,22 +1333,30 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ## Handoff
 
-**Status:** Deployed to Vercel. All 80 tasks complete; the app is live and the demo data is
-seeded (same Supabase project as local). `npm run verify` green (271 tests, 24 files).
+**Status:** Deployed to Vercel, and the sign-in bug is fixed. All 80 tasks complete; the app
+is live with demo data seeded (same Supabase project as local). `npm run verify` green
+(271 tests, 24 files).
 
-- Last completed task: T12.5 (Vercel deploy) + T0.5 (repo linked) — the last two open
-  tasks. Production URL: **https://tradereach-ai-five.vercel.app** (project `tradereach-ai`,
-  team `alimool`).
+- Last completed task: T12.5 (Vercel deploy) + T0.5 (repo linked), plus a post-deploy fix:
+  the first deploy returned "fetch failed" on sign-in because the Vercel env vars were
+  corrupt — duplicate entries and values wrapped with a literal `"`/UTF-8 BOM. Root cause:
+  `vercel env add … < stdin` in PowerShell prepends a BOM and the values had been set twice
+  (2 days ago + today), leaving overlapping `production` entries. Fixed by deleting every
+  env entry via the Vercel REST API and re-adding all 16 runtime vars as JSON (`type
+  encrypted` for `NEXT_PUBLIC_*`, `sensitive` for secrets), then redeploying. Verified:
+  Supabase `/auth/v1/token` returns 200 for the demo creds; deployed `/login` → 200, `/` →
+  307. Production URL: **https://tradereach-ai-five.vercel.app**.
 - Remaining human steps (not code): (1) add
   `https://tradereach-ai-five.vercel.app/api/auth/gmail/callback` to the Google OAuth
-  client's authorised redirect URIs, (2) sign in on the deployed URL as
-  `rifat.hasan@anwargroup.test` / `demo-password-2026` and walk the twelve-step journey,
-  (3) record the demo video (`DEMO.md`), (4) optionally delete the empty `files` project
-  from the Vercel dashboard.
-- Vercel env vars are set for production/preview/development (values pushed from
-  `.env.local` via CLI, `AUTH_MODE=live`, URL vars pointed at the prod alias). To change
-  any later, use the dashboard or `vercel env add <NAME> "production,preview,development"
-  --value ... --yes`.
+  client's authorised redirect URIs (Gmail connect only — email sign-in needs nothing), (2)
+  sign in on the deployed URL as `rifat.hasan@anwargroup.test` / `demo-password-2026` and
+  walk the twelve-step journey, (3) record the demo video (`DEMO.md`), (4) optionally delete
+  the empty `files` project from the Vercel dashboard.
+- **Env-var lesson for the next agent:** never set Vercel env vars through a PowerShell
+  stdin pipe — it prepends a UTF-8 BOM. Use the REST API
+  (`POST /v9/projects/{id}/env` with a JSON body) or the dashboard. `vercel env pull`
+  always wraps values in double quotes, so do NOT treat a quoted pull value as corruption;
+  compare the *inner* value.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
   running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
   `npx tsx --env-file=.env.local scripts/seed.ts --reset`. `supabase db push` targets the
