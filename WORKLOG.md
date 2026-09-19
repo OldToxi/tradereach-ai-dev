@@ -1331,11 +1331,36 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T4.3 follow-up — company Communication tab shows the real thread (was a placeholder)
+- when: 2026-09-19 08:30 UTC
+- agent: claude-code
+- files: `lib/thread.ts` (new), `tests/thread.test.ts` (new),
+  `components/CompanyDetailScreen.tsx`, `app/(app)/companies/[id]/page.tsx`
+- done: |
+    The company detail "Communication" tab still rendered the T4.3 placeholder ("…arrive with
+    the outreach phases Phase 7–9") even though Phases 7–9 (messages, replies, triage) shipped.
+    Replaced `CommsPane` with a real thread: outbound `message` rows (status `sent`/`approved`,
+    approver name via `profiles!message_approved_by_fkey`) merged with inbound `reply` rows
+    (contact, derived `Re:` subject, body, and the AI triage tags — category/intent/urgency/
+    next-action — or "Awaiting triage" when unclassified), newest first, mirroring the mock's
+    `p-comms` pane (inbound green / outbound ochre left border). Added `messages` + `replies`
+    to `CompanyDetail` and the two server queries.
+- verified: |
+    `npm run verify` green — 275 tests / 25 files (4 new tests pin the thread merge order and
+    in/out direction tagging in `lib/thread.ts`).
+- notes: |
+    The merge/sort rule lives in `lib/thread.ts` (`combineThread`) so it's unit-tested without
+    a DB, matching the `outreach.ts`/`replies.ts` pattern. Inbound replies have no `subject`
+    column, so the pane derives `Re: <message.subject>` from the linked message (same as the
+    Replies screen). Only `sent`/`approved` messages appear — drafts stay in the review queue.
+
+---
+
 ## Handoff
 
 **Status:** Deployed to Vercel, and the sign-in bug is fixed. All 80 tasks complete; the app
 is live with demo data seeded (same Supabase project as local). `npm run verify` green
-(271 tests, 24 files).
+(275 tests, 25 files).
 
 - Last completed task: T12.5 (Vercel deploy) + T0.5 (repo linked), plus a post-deploy fix:
   the first deploy returned "fetch failed" on sign-in because the Vercel env vars were

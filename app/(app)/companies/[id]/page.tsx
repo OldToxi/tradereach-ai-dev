@@ -10,6 +10,8 @@ import {
   type ContactView,
   type AuditView,
   type ResearchView,
+  type ThreadMessageView,
+  type ThreadReplyView,
 } from '@/components/CompanyDetailScreen'
 
 export default async function CompanyDetailPage({ params }: { params: { id: string } }) {
@@ -21,6 +23,8 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
     { data: facts },
     { data: sources },
     { data: contacts },
+    { data: messages },
+    { data: replies },
     { data: audit },
     { data: latestRun },
   ] = await Promise.all([
@@ -48,6 +52,21 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
       .select('id, full_name, role_title, email, email_source, provenance, lawful_basis, is_primary')
       .eq('company_id', params.id)
       .order('is_primary', { ascending: false }),
+    supabase
+      .from('message')
+      .select(
+        'id, subject, human_body, ai_body, status, approved_at, approved_by, created_at, profiles!message_approved_by_fkey(full_name)',
+      )
+      .eq('company_id', params.id)
+      .in('status', ['sent', 'approved'])
+      .order('approved_at', { ascending: false }),
+    supabase
+      .from('reply')
+      .select(
+        'id, body, received_at, is_simulated, category, intent, urgency, confidence, next_action, contact:contact_id(full_name), message:message_id(subject)',
+      )
+      .eq('company_id', params.id)
+      .order('received_at', { ascending: false }),
     supabase
       .from('audit_event')
       .select('actor_label, event, detail, created_at')
@@ -145,6 +164,30 @@ export default async function CompanyDetailPage({ params }: { params: { id: stri
         provenance: c.provenance,
         lawfulBasis: c.lawful_basis,
         isPrimary: c.is_primary,
+      }),
+    ),
+    messages: (messages ?? []).map(
+      (m): ThreadMessageView => ({
+        id: m.id,
+        subject: m.subject,
+        body: m.human_body ?? m.ai_body,
+        approverName: m.profiles?.full_name ?? null,
+        timestamp: m.approved_at ?? m.created_at,
+      }),
+    ),
+    replies: (replies ?? []).map(
+      (r): ThreadReplyView => ({
+        id: r.id,
+        contactName: r.contact?.full_name ?? null,
+        subject: r.message?.subject ? `Re: ${r.message.subject}` : null,
+        body: r.body,
+        timestamp: r.received_at,
+        isSimulated: r.is_simulated,
+        category: r.category,
+        intent: r.intent,
+        urgency: r.urgency,
+        confidence: r.confidence,
+        nextAction: r.next_action,
       }),
     ),
     audit: (audit ?? []).map(

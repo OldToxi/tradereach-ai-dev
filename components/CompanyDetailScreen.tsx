@@ -32,6 +32,8 @@ import {
   EMAIL_SOURCE_OPTIONS,
   LAWFUL_BASIS_OPTIONS,
 } from '@/lib/contacts'
+import { categoryLabel, intentLabel, urgencyLabel, nextActionLabel } from '@/lib/replies'
+import { combineThread } from '@/lib/thread'
 
 export interface FactView {
   id: string
@@ -72,6 +74,28 @@ export interface AuditView {
   createdAt: string
 }
 
+export interface ThreadMessageView {
+  id: string
+  subject: string
+  body: string | null
+  approverName: string | null
+  timestamp: string
+}
+
+export interface ThreadReplyView {
+  id: string
+  contactName: string | null
+  subject: string | null
+  body: string
+  timestamp: string
+  isSimulated: boolean
+  category: string | null
+  intent: string | null
+  urgency: string | null
+  confidence: number | null
+  nextAction: string | null
+}
+
 export interface ResearchView {
   summary: string
   opportunitySummary: string
@@ -107,6 +131,8 @@ export interface CompanyDetail {
   facts: FactView[]
   sources: SourceView[]
   contacts: ContactView[]
+  messages: ThreadMessageView[]
+  replies: ThreadReplyView[]
   audit: AuditView[]
 }
 
@@ -262,7 +288,7 @@ export function CompanyDetailScreen({
         />
       ) : null}
       {tab === 'people' ? <PeoplePane company={company} canWrite={canWrite} /> : null}
-      {tab === 'comms' ? <CommsPane /> : null}
+      {tab === 'comms' ? <CommsPane company={company} /> : null}
       {tab === 'history' ? <HistoryPane company={company} /> : null}
     </div>
   )
@@ -1698,17 +1724,86 @@ function DecisionMakerCard({ company, canWrite }: { company: CompanyDetail; canW
 /* Communication / History                                             */
 /* ------------------------------------------------------------------ */
 
-function CommsPane() {
+function CommsPane({ company }: { company: CompanyDetail }) {
+  const items = combineThread(company.messages, company.replies)
+
   return (
     <div className="card">
+      <header>
+        <h3>Thread</h3>
+        <div className="grow" />
+        {items.length > 0 ? (
+          <span className="tiny muted">
+            {items.length} message{items.length > 1 ? 's' : ''}
+          </span>
+        ) : null}
+      </header>
       <div className="body">
-        <p className="small muted" style={{ margin: 0 }}>
-          The communication thread and AI reply classification arrive with the outreach phases
-          (Phase 7–9).
-        </p>
+        {items.length === 0 ? (
+          <p className="small muted" style={{ margin: 0 }}>
+            No messages yet. Find a decision-maker, run the AI research, and draft the first
+            touch from the review queue — the thread builds up here.
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gap: 12 }}>
+            {items.map((item) =>
+              item.direction === 'out' ? (
+                <div
+                  key={item.message.id}
+                  style={{ borderLeft: '3px solid var(--ochre)', paddingLeft: 11 }}
+                >
+                  <div className="small">
+                    <b>{item.message.approverName ?? 'Anwar Group'}</b>{' '}
+                    <span className="muted">· {fmtDateTime(item.message.timestamp)} · sent</span>
+                  </div>
+                  <div className="small">{item.message.subject}</div>
+                  {item.message.body ? (
+                    <div className="tiny muted">{snippet(item.message.body)}</div>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  key={item.reply.id}
+                  style={{ borderLeft: '3px solid var(--verified)', paddingLeft: 11 }}
+                >
+                  <div className="small">
+                    <b>{item.reply.contactName ?? 'Unknown sender'}</b>{' '}
+                    <span className="muted">· {fmtDateTime(item.reply.timestamp)} · received</span>
+                  </div>
+                  {item.reply.subject ? <div className="small">{item.reply.subject}</div> : null}
+                  <div className="tiny muted">{snippet(item.reply.body)}</div>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
+                    {item.reply.category ? (
+                      <>
+                        <span className="tag">{categoryLabel(item.reply.category)}</span>
+                        {item.reply.intent ? (
+                          <span className="tag">{intentLabel(item.reply.intent)}</span>
+                        ) : null}
+                        {item.reply.urgency ? (
+                          <span className="tag">{urgencyLabel(item.reply.urgency)}</span>
+                        ) : null}
+                        {item.reply.nextAction ? (
+                          <span className="tag tag-due">{nextActionLabel(item.reply.nextAction)}</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="tag tag-due">Awaiting triage</span>
+                    )}
+                    {item.reply.isSimulated ? <span className="tag">Simulated</span> : null}
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+function snippet(text: string, max = 200): string {
+  const t = text.replace(/\s+/g, ' ').trim()
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t
 }
 
 function HistoryPane({ company }: { company: CompanyDetail }) {
