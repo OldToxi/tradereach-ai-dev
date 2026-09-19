@@ -12,6 +12,22 @@ The submission checklist (the twelve brief §8 deliverables, with status and poi
 in [`DELIVERABLES.md`](DELIVERABLES.md); the recording script for the demo video is in
 [`DEMO.md`](DEMO.md).
 
+## Try it live
+
+- **Live app** — https://tradereach-ai-five.vercel.app
+- **Demo sign-in** (all passwords `demo-password-2026`):
+
+  | Email | Role |
+  |---|---|
+  | `rifat.hasan@anwargroup.test` | Export Manager |
+  | `nusrat.jahan@anwargroup.test` | Export Executive |
+  | `mahbub.rahman@anwargroup.test` | Commercial Authority |
+  | `audit@anwargroup.test` | Read-only Auditor |
+
+- **Walkthrough** — [`DEMO.md`](DEMO.md) (the twelve-step journey, with a recording
+  script) · **Deliverables** — [`DELIVERABLES.md`](DELIVERABLES.md) · **Assessment
+  coverage** — [`ASSESSMENT.md`](ASSESSMENT.md)
+
 ---
 
 ## What it does
@@ -214,9 +230,10 @@ Gmail + Calendar connectors, audit trail, the products "market fit" panel, the
 "sent & follow-ups" outreach screen, and the full test suite (271 unit tests plus the
 twelve-step Playwright journey).
 
-**Not yet done (human steps):** Vercel deployment (`T0.5`, `T12.5` in `PLAN.md`) and the
-demo video (`DEMO.md`). Everything else — 78 of 80 tasks — is finished. See
-[`PLAN.md`](PLAN.md) and [`WORKLOG.md`](WORKLOG.md) for the live task state.
+**Not yet done (human steps):** the demo video ([`DEMO.md`](DEMO.md)) and adding the
+production Gmail callback URL to the Google OAuth client (see [`SETUP.md`](SETUP.md)).
+All 80 planned tasks are finished — see [`PLAN.md`](PLAN.md) and [`WORKLOG.md`](WORKLOG.md)
+for the live task state.
 
 ---
 
@@ -236,9 +253,8 @@ demo video (`DEMO.md`). Everything else — 78 of 80 tasks — is finished. See
 
 ## Next steps
 
-1. Deploy to Vercel (`SETUP.md` step 5), set `AUTH_MODE=live`, smoke-test the journey on
-   the deployed URL (`T12.5`).
-2. Record the demonstration video using [`DEMO.md`](DEMO.md).
+1. Record the demonstration video using [`DEMO.md`](DEMO.md).
+2. Add the production Gmail callback URL to the Google OAuth client (see `SETUP.md`).
 3. Optional: a reply/triage cron, multi-mailbox Gmail support, and Open/read tracking on
    sent messages (the mock's "Opens" column has no schema behind it today).
 
