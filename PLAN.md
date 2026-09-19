@@ -18,7 +18,7 @@ likely thing to go wrong.
       OAuth client (Web) → redirect URIs for `localhost:3000` and the Vercel URL
 - [x] T0.3 Supabase: new project, copy URL, anon key, service role key, DB password
 - [x] T0.4 Anthropic console: API key, set a monthly spend cap
-- [ ] T0.5 Vercel: import the repo, add every var from `.env.example` to the project
+- [x] T0.5 Vercel: import the repo, add every var from `.env.example` to the project
 - [x] T0.6 Locally: `cp .env.example .env.local`, fill it, `npm install`
 
 ---
@@ -212,7 +212,7 @@ likely thing to go wrong.
 - [x] T12.4 `README.md`: setup, deployment, architecture, database overview, stack rationale,
       AI workflow, connector integration, completed vs incomplete features, known
       limitations, next steps, third-party disclosure. Brief section 8 is the outline
-- [ ] T12.5 Deploy to Vercel, set `AUTH_MODE=live`, smoke-test the journey on the deployed URL
+- [x] T12.5 Deploy to Vercel, set `AUTH_MODE=live`, smoke-test the journey on the deployed URL
 - [x] T12.6 Final pass: no secrets committed, `.env.example` complete, stub-auth guard verified
       in production build
 

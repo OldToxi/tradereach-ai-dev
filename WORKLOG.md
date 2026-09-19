@@ -22,11 +22,11 @@ it changes later tasks, edit `PLAN.md` too and say so.
 ---
 
 <!-- PROGRESS:START -->
-`█████████████████████████████░` **98%** — 78 of 80 tasks complete
+`██████████████████████████████` **100%** — 80 of 80 tasks complete
 
 | Phase | Done | Total |
 |---|---|---|
-| 0 · Human setup | 5 | 6 |
+| 0 · Human setup | 6 | 6 ✓ |
 | 1 · Foundation | 10 | 10 ✓ |
 | 2 · Auth & shell | 5 | 5 ✓ |
 | 3 · Catalog | 4 | 4 ✓ |
@@ -38,7 +38,7 @@ it changes later tasks, edit `PLAN.md` too and say so.
 | 9 · Replies & triage | 6 | 6 ✓ |
 | 10 · Meetings & pipeline | 7 | 7 ✓ |
 | 11 · Control surfaces | 5 | 5 ✓ |
-| 12 · Tests, docs, deploy | 5 | 6 |
+| 12 · Tests, docs, deploy | 6 | 6 ✓ |
 | 13 · Closing the stubbed surfaces | 2 | 2 ✓ |
 <!-- PROGRESS:END -->
 
@@ -1300,44 +1300,63 @@ Regenerate with `npm run progress`. Do not hand-edit between the markers.
 
 ---
 
+### T12.5 — deploy to Vercel (and T0.5 repo link)
+- when: 2026-09-19 04:50 UTC
+- agent: claude-code (+ human `vercel login`)
+- files: none in-repo; Vercel project `tradereach-ai` under team `alimool`
+- done: |
+    Linked the repo to a new Vercel project `tradereach-ai` (team `alimool`), pushed every
+    runtime env var from `.env.local` via `vercel env add` (values piped through stdin, never
+    echoed), forced `AUTH_MODE=live`, set `NEXT_PUBLIC_APP_URL` + `GOOGLE_REDIRECT_URI` to the
+    prod domain, and ran `vercel --prod` twice (second pass picks up the URL vars). Build is
+    clean: Next.js 14.2.35 compiled, typed, linted, 19/19 routes. `GET /login` → 200 and
+    `GET /` → 307 to /login (middleware auth redirect working).
+- verified: |
+    `vercel whoami` → oldtoxi; every env var confirmed by `vercel env add`. Production alias
+    https://tradereach-ai-five.vercel.app serves /login with 200.
+- notes: |
+    Points at the SAME Supabase project as local dev (already migrated + seeded + auth hook
+    active), so demo data is live with no re-seed. A leftover empty project `files`
+    (auto-named from the directory by `vercel link --yes`) is harmless; delete from the
+    dashboard if desired. Google OAuth redirect URI for the new domain still needs adding in
+    Google Cloud, and the full twelve-step smoke-test on the deployed URL is a human sign-in
+    away.
+- surprises: |
+    1. `vercel link --yes` named the project after the directory (`files`), not the repo —
+       relinked with `--project tradereach-ai`.
+    2. `vercel env add` refused `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a secret until passed
+       `--type config` (the anon key is intentionally public).
+    3. PowerShell splits the unquoted env list `production,preview,development` — it must be
+       quoted as one argument.
+
+---
+
 ## Handoff
 
-**Status:** Phase 13 complete. The two stubbed surfaces from the original plan are now
-built — the Products "Market fit" panel (T13.1) and the "Sent & follow-ups" screen
-(T13.2) — without adding a fifth AI prompt. `npm run verify` green (271 tests, 24 files).
+**Status:** Deployed to Vercel. All 80 tasks complete; the app is live and the demo data is
+seeded (same Supabase project as local). `npm run verify` green (271 tests, 24 files).
 
-- Last completed task: T13.2 (outreach screen), immediately after T13.1 (market-fit
-  panel). Both committed together.
-- Current task: none open for an agent. `T0.5` (import repo into Vercel + set env vars)
-  and `T12.5` (deploy to Vercel) remain human steps — 78 of 80 tasks done.
-- New files this task: `lib/outreach.ts` (pure `computeOutreach` + label helpers),
-  `components/OutreachScreen.tsx`, `tests/outreach.test.ts`. Changed:
-  `lib/catalog.ts` (+`marketFitSummary`/`marketFitText`), `app/(app)/products/page.tsx`
-  (fetches `research_run` and joins to products), `components/ProductsScreen.tsx`
-  (renders the market-fit panel), `app/(app)/outreach/page.tsx` (real screen, no longer
-  a `<Placeholder>`), `tests/catalog.test.ts`, `PLAN.md` (new Phase 13), and
-  `scripts/progress.mjs` (phase-13 name in the table).
-- Blocked on (human): nothing new. Deployment still needs GitHub/Vercel/Google access —
-  see `SETUP.md` steps 1 and 5, set every `.env.example` variable, `AUTH_MODE=live`
-  (never `stub`), add the deployed Vercel domain to the Google OAuth redirect URIs, then
-  smoke-test the twelve-step journey on the deployed URL.
-- Design notes (Phase 13, deliberately not new prompts — AGENTS.md §5 "four prompts
-  only"): the market-fit panel aggregates `research_run.score` by market; the outreach
-  list reuses `lib/messages.ts` cadence + `lib/replies.ts` next-action labels. The mock's
-  "What is working" AI block and the "Opens" column are omitted (no prompt produces that
-  narrative; no open/read tracking in the schema). "Approved by" degrades to "—" for
-  non-manager roles because `profiles` RLS hides other users from executives — intended.
+- Last completed task: T12.5 (Vercel deploy) + T0.5 (repo linked) — the last two open
+  tasks. Production URL: **https://tradereach-ai-five.vercel.app** (project `tradereach-ai`,
+  team `alimool`).
+- Remaining human steps (not code): (1) add
+  `https://tradereach-ai-five.vercel.app/api/auth/gmail/callback` to the Google OAuth
+  client's authorised redirect URIs, (2) sign in on the deployed URL as
+  `rifat.hasan@anwargroup.test` / `demo-password-2026` and walk the twelve-step journey,
+  (3) record the demo video (`DEMO.md`), (4) optionally delete the empty `files` project
+  from the Vercel dashboard.
+- Vercel env vars are set for production/preview/development (values pushed from
+  `.env.local` via CLI, `AUTH_MODE=live`, URL vars pointed at the prod alias). To change
+  any later, use the dashboard or `vercel env add <NAME> "production,preview,development"
+  --value ... --yes`.
 - Operational notes (unchanged): do NOT run `npm run build` while `npm run dev` is
-  running (clobbers `.next`). A dev server is currently up on **port 3000** for the local
-  demo (`cmd /c npm run dev -- --port 3000 > dev-server.log 2>&1`). `npm run seed` does
-  not load `.env.local`; use `npx tsx --env-file=.env.local scripts/seed.ts --reset`.
-  Regenerate `lib/database.types.ts` with `supabase gen types typescript --linked` (then
-  re-encode to UTF-8 on Windows — the plain `>` redirect emits UTF-16). `supabase db push`
-  targets the remote; existing Gmail tokens predate `gmail.readonly` and will 403 until
-  the OAuth consent is re-run.
+  running (clobbers `.next`). `npm run seed` does not load `.env.local`; use
+  `npx tsx --env-file=.env.local scripts/seed.ts --reset`. `supabase db push` targets the
+  remote; existing Gmail tokens predate `gmail.readonly` and will 403 until the OAuth
+  consent is re-run.
 - E2E notes: the Playwright CDN is unreachable here, so the suite uses the system Chrome
-  (`channel: 'chrome'`); `E2E_BASE_URL` defaults to `http://localhost:3001` but the
-  current dev server is on 3000 — set `E2E_BASE_URL=http://localhost:3000` before
+  (`channel: 'chrome'`); `E2E_BASE_URL` defaults to `http://localhost:3001` but the current
+  dev server is on 3000 — set `E2E_BASE_URL=http://localhost:3000` before
   `npm run test:e2e`.
 - Next command for the next agent (or human):
 
